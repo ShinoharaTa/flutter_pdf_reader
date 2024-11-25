@@ -168,6 +168,7 @@ class PDFViewerPage extends StatefulWidget {
 
 class _PDFViewerPageState extends State<PDFViewerPage> {
   PdfController? _pdfController;
+  Axis _scrollDirection = Axis.vertical; // 初期は縦スクロール
 
   @override
   void initState() {
@@ -216,30 +217,47 @@ Future<void> _showErrorModal(String message) async {
 
   @override
   Widget build(BuildContext context) {
-    if (_pdfController == null) {
-      // PDFコントローラが初期化されていない場合（ロード中）
-      return Scaffold(
-        appBar: AppBar(
-          title: Text("PDF Viewer"),
-        ),
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text("PDF Viewer"),
       ),
-      body: PdfView(
-        controller: _pdfController!,
-        onDocumentError: (error) {
-          // ドキュメントエラー時にダイアログを表示してトップに戻る
-          _showErrorModal(
-            "An error occurred while loading the document: ${error.toString()}",
-          );
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: _pdfController == null
+                ? Center(child: CircularProgressIndicator())
+                : PdfView(
+                    controller: _pdfController!,
+                    scrollDirection: _scrollDirection,
+                  ),
+          ),
+          Container(
+            color: Colors.grey[200],
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _scrollDirection = Axis.vertical;
+                    });
+                  },
+                  child: Text("Vertical Scroll"),
+                ),
+                SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _scrollDirection = Axis.horizontal;
+                    });
+                  },
+                  child: Text("Horizontal Scroll"),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
