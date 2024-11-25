@@ -57,7 +57,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _openFilePicker() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.custom, allowedExtensions: ["pdf"]);
     if (result != null && result.files.single.path != null) {
       final filePath = result.files.single.path!;
       await _addRecentFile(filePath);
@@ -156,23 +157,89 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 }
 
-class PDFViewerPage extends StatelessWidget {
+class PDFViewerPage extends StatefulWidget {
   final String filePath;
 
   const PDFViewerPage({required this.filePath});
 
   @override
-  Widget build(BuildContext context) {
-    final pdfController = PdfController(
-      document: PdfDocument.openFile(filePath),
+  _PDFViewerPageState createState() => _PDFViewerPageState();
+}
+
+class _PDFViewerPageState extends State<PDFViewerPage> {
+  PdfController? _pdfController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPdf();
+  }
+
+  Future<void> _loadPdf() async {
+    try {
+      // PDFをロード
+      setState(() {
+        _pdfController = PdfController(
+          document: PdfDocument.openFile(widget.filePath),
+        );
+      });
+    } catch (e) {
+      // エラーが発生した場合にモーダルを表示
+      _showErrorModal("Failed to open the PDF file. Please check the file.");
+    }
+  }
+
+Future<void> _showErrorModal(String message) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Error"),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // ダイアログを閉じる
+              Navigator.pop(context); // トップに戻る
+            },
+            child: Text("OK"),
+          ),
+        ],
+      ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pdfController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_pdfController == null) {
+      // PDFコントローラが初期化されていない場合（ロード中）
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("PDF Viewer"),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text("PDF Viewer"),
       ),
       body: PdfView(
-        controller: pdfController,
+        controller: _pdfController!,
+        onDocumentError: (error) {
+          // ドキュメントエラー時にダイアログを表示してトップに戻る
+          _showErrorModal(
+            "An error occurred while loading the document: ${error.toString()}",
+          );
+        },
       ),
     );
   }
