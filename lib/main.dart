@@ -47,10 +47,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<void> _addRecentFile(String filePath) async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      recentFiles.remove(filePath); // 重複を排除
-      recentFiles.insert(0, filePath); // 新しいファイルを先頭に追加
+      recentFiles.remove(filePath);
+      recentFiles.insert(0, filePath);
       if (recentFiles.length > 10) {
-        recentFiles = recentFiles.sublist(0, 10); // 最大10件まで
+        recentFiles = recentFiles.sublist(0, 20);
       }
       prefs.setStringList('recentFiles', recentFiles);
     });
@@ -171,6 +171,7 @@ class PDFViewerPage extends StatefulWidget {
 class _PDFViewerPageState extends State<PDFViewerPage> {
   PdfController? _pdfController;
   Axis _scrollDirection = Axis.vertical; // 初期は縦スクロール
+  bool _isDualPageMode = false; // 初期状態はシングルページモード
 
   @override
   void initState() {
@@ -255,6 +256,15 @@ Future<void> _showErrorModal(String message) async {
                     });
                   },
                   child: Text("Horizontal Scroll"),
+                ),
+                SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isDualPageMode = !_isDualPageMode; // モード切り替え
+                    });
+                  },
+                  child: Text("Par Page"),
                 ),
               ],
             ),
