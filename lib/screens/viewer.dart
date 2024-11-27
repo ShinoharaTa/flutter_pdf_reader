@@ -35,7 +35,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
     }
   }
 
-Future<void> _showErrorModal(String message) async {
+  Future<void> _showErrorModal(String message) async {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
