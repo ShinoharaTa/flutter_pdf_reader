@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
@@ -11,6 +12,27 @@ class LibraryScreen extends ConsumerWidget {
   Future<bool> _requestStoragePermission() async {
     final status = await Permission.manageExternalStorage.request();
     return status.isGranted;
+  }
+
+  List<Widget> _getDirectoryContent(String directoryPath) {
+    final dir = Directory(directoryPath);
+    final files = dir.listSync();
+
+    return files.map((file) {
+      if (file is Directory) {
+        return ExpansionTile(
+          title: Text(file.path.split('/').last),
+          children: _getDirectoryContent(file.path),
+        );
+      } else {
+        return ListTile(
+          title: Text(file.path.split('/').last),
+          onTap: () {
+            // ファイルを開く処理をここに記述
+          },
+        );
+      }
+    }).toList();
   }
 
   @override
@@ -143,7 +165,7 @@ class LibraryScreen extends ConsumerWidget {
               final directory = await getDirectoryPath();
               if (directory != null) {
                 final notifier = ref.read(fileStoreProvider.notifier);
-                notifier.addDirectory(directory); // 例: ディレクトリを追加
+                notifier.addDirectory(directory);
               }
             },
             icon: Icon(Icons.add),
@@ -151,12 +173,10 @@ class LibraryScreen extends ConsumerWidget {
           ),
         ),
         ...state.directories.map((directory) {
-          final notifier = ref.read(fileStoreProvider.notifier);
           return ExpansionTile(
-            title: Text(directory.split('/').last),
-            children: notifier.getDirectoryContent(directory),
-          );
-        }).toList(),
+              title: Text(directory.split('/').last),
+              children: _getDirectoryContent(directory));
+        })
       ],
     );
   }

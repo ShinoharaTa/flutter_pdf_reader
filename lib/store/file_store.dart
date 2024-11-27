@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,28 +65,6 @@ class FileStore extends Notifier<FileStoreState> {
       state = state.copyWith(directories: updatedDirectories);
       await prefs.setStringList('directories', updatedDirectories);
     }
-  }
-
-  // Directory内容を取得
-  List<Widget> getDirectoryContent(String directoryPath) {
-    final dir = Directory(directoryPath);
-    final files = dir.listSync();
-
-    return files.map((file) {
-      if (file is Directory) {
-        return ExpansionTile(
-          title: Text(file.path.split('/').last),
-          children: getDirectoryContent(file.path),
-        );
-      } else {
-        return ListTile(
-          title: Text(file.path.split('/').last),
-          onTap: () {
-            // ファイルを開く処理をここに記述
-          },
-        );
-      }
-    }).toList();
   }
 }
 
