@@ -14,21 +14,28 @@ class LibraryScreen extends ConsumerWidget {
     return status.isGranted;
   }
 
-  List<Widget> _getDirectoryContent(String directoryPath) {
+  List<Widget> _getDirectoryContent(
+      String directoryPath, WidgetRef ref, BuildContext context) {
     final dir = Directory(directoryPath);
     final files = dir.listSync();
 
     return files.map((file) {
       if (file is Directory) {
         return ExpansionTile(
-          title: Text(file.path.split('/').last),
-          children: _getDirectoryContent(file.path),
-        );
+            title: Text(file.path.split('/').last),
+            children: _getDirectoryContent(file.path, ref, context));
       } else {
         return ListTile(
           title: Text(file.path.split('/').last),
-          onTap: () {
-            // ファイルを開く処理をここに記述
+          onTap: () async {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PDFViewerPage(filePath: file.path),
+              ),
+            );
+            final notifier = ref.read(fileStoreProvider.notifier);
+            await notifier.addRecentFile(file.path);
           },
         );
       }
@@ -175,7 +182,7 @@ class LibraryScreen extends ConsumerWidget {
         ...state.directories.map((directory) {
           return ExpansionTile(
               title: Text(directory.split('/').last),
-              children: _getDirectoryContent(directory));
+              children: _getDirectoryContent(directory, ref, ref.context));
         })
       ],
     );
