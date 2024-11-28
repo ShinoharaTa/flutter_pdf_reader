@@ -153,13 +153,11 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                             ListTile(
                               title: Text(
                                 "Scroll Direction",
-                                // style: TextStyle(color: Colors.white)
                               ),
                               subtitle: Text(
                                 settings.scrollDirection == Axis.horizontal
                                     ? "Horizontal"
                                     : "Vertical",
-                                // style: TextStyle(color: Colors.white70)
                               ),
                               trailing: Switch(
                                 value:
@@ -171,13 +169,11 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                             ListTile(
                               title: Text(
                                 "Favorite",
-                                // style: TextStyle(color: Colors.white)
                               ),
                               subtitle: Text(
                                 settings.scrollDirection == Axis.horizontal
                                     ? "Horizontal"
                                     : "Vertical",
-                                // style: TextStyle(color: Colors.white70)
                               ),
                               trailing: Checkbox(
                                 value:
