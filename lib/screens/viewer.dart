@@ -13,7 +13,7 @@ class PDFViewerPage extends StatefulWidget {
 class _PDFViewerPageState extends State<PDFViewerPage> {
   PdfController? _pdfController;
   Axis _scrollDirection = Axis.vertical; // 初期は縦スクロール
-  bool _isDualPageMode = false; // 初期状態はシングルページモード
+  bool _isOverlayVisible = false; // 初期状態ではオーバーレイは非表示
 
   @override
   void initState() {
@@ -23,14 +23,12 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
 
   Future<void> _loadPdf() async {
     try {
-      // PDFをロード
       setState(() {
         _pdfController = PdfController(
           document: PdfDocument.openFile(widget.filePath),
         );
       });
     } catch (e) {
-      // エラーが発生した場合にモーダルを表示
       _showErrorModal("Failed to open the PDF file. Please check the file.");
     }
   }
@@ -60,58 +58,114 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
     super.dispose();
   }
 
+  void _toggleOverlay() {
+    setState(() {
+      _isOverlayVisible = !_isOverlayVisible; // オーバーレイの表示状態を切り替え
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("PDF Viewer"),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _pdfController == null
-                ? Center(child: CircularProgressIndicator())
-                : PdfView(
-                    controller: _pdfController!,
-                    scrollDirection: _scrollDirection,
-                  ),
-          ),
-          Container(
-            color: Colors.grey[200],
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _scrollDirection = Axis.vertical;
-                    });
-                  },
-                  child: Text("Vertical Scroll"),
-                ),
-                SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _scrollDirection = Axis.horizontal;
-                    });
-                  },
-                  child: Text("Horizontal Scroll"),
-                ),
-                SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _isDualPageMode = !_isDualPageMode; // モード切り替え
-                    });
-                  },
-                  child: Text("Par Page"),
-                ),
-              ],
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // PDFビュー
+            PdfView(
+              controller: _pdfController!,
+              scrollDirection: _scrollDirection,
             ),
-          ),
-        ],
+
+            // 右上のメニューボタン
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                icon: Icon(Icons.menu),
+                onPressed: _toggleOverlay, // オーバーレイをトグル
+              ),
+            ),
+
+            // 上部バー（オーバーレイ）
+            if (_isOverlayVisible)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _isOverlayVisible ? 1.0 : 0.0,
+                  duration: Duration(milliseconds: 300),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.7),
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Text(
+                          "PDF Viewer",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          onPressed: _toggleOverlay, // 閉じるボタン
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // 下部バー（オーバーレイ）
+            if (_isOverlayVisible)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _isOverlayVisible ? 1.0 : 0.0,
+                  duration: Duration(milliseconds: 300),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.7),
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _scrollDirection = Axis.vertical;
+                            });
+                          },
+                          // style: ElevatedButton.styleFrom(
+                          //   primary: Colors.white,
+                          //   onPrimary: Colors.black,
+                          // ),
+                          child: Text("Vertical Scroll"),
+                        ),
+                        SizedBox(width: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _scrollDirection = Axis.horizontal;
+                            });
+                          },
+                          // style: ElevatedButton.styleFrom(
+                          //   primary: Colors.white,
+                          //   onPrimary: Colors.black,
+                          // ),
+                          child: Text("Horizontal Scroll"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
