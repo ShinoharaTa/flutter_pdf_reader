@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../store/settings_store.dart';
 
 class SettingsPage extends ConsumerWidget {
+  const SettingsPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsStoreProvider);
@@ -11,12 +13,12 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Settings"),
+        title: const Text("Settings"),
       ),
       body: ListView(
         children: [
           ListTile(
-            title: Text("Theme"),
+            title: const Text("Theme"),
             subtitle: Text(
               settings.themeMode == ThemeMode.dark ? "Dark" : "Light",
             ),

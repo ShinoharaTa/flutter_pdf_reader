@@ -9,6 +9,8 @@ import './settings.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class LibraryScreen extends ConsumerWidget {
+  const LibraryScreen({super.key});
+
   Future<bool> _requestStoragePermission() async {
     final status = await Permission.manageExternalStorage.request();
     return status.isGranted;
@@ -50,21 +52,21 @@ class LibraryScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: Text("Library"),
+          title: const Text("Library"),
           actions: [
             IconButton(
-              icon: Icon(Icons.settings),
+              icon: const Icon(Icons.settings),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => SettingsPage(), // 設定画面に遷移
+                    builder: (context) => const SettingsPage(), // 設定画面に遷移
                   ),
                 );
               },
             ),
           ],
-          bottom: TabBar(
+          bottom: const TabBar(
             tabs: [
               Tab(text: "Recent"),
               Tab(text: "Favorite"),
@@ -127,7 +129,7 @@ class LibraryScreen extends ConsumerWidget {
             await notifier.addRecentFile(filePath);
           },
           trailing: IconButton(
-            icon: Icon(Icons.delete),
+            icon: const Icon(Icons.delete),
             onPressed: () async {
               final result = await ConfirmationDialog.show(
                 context: context,
@@ -155,7 +157,7 @@ class LibraryScreen extends ConsumerWidget {
           title: Text(filePath.split('/').last),
           subtitle: Text(filePath),
           trailing: IconButton(
-            icon: Icon(Icons.delete),
+            icon: const Icon(Icons.delete),
             onPressed: () {
               final notifier = ref.read(fileStoreProvider.notifier);
               notifier.removeFavoriteFile(filePath);
@@ -176,7 +178,7 @@ class LibraryScreen extends ConsumerWidget {
               final isGranted = await _requestStoragePermission();
               if (!isGranted) {
                 ScaffoldMessenger.of(ref.context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                       content: Text(
                           "Storage permission is required to access folders.")),
                 );
@@ -188,8 +190,8 @@ class LibraryScreen extends ConsumerWidget {
                 notifier.addDirectory(directory);
               }
             },
-            icon: Icon(Icons.add),
-            label: Text("Add Directory"),
+            icon: const Icon(Icons.add),
+            label: const Text("Add Directory"),
           ),
         ),
         ...state.directories.map((directory) {

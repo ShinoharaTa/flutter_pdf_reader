@@ -6,7 +6,7 @@ import '../store/settings_store.dart';
 class PDFViewerPage extends ConsumerStatefulWidget {
   final String filePath;
 
-  const PDFViewerPage({required this.filePath});
+  const PDFViewerPage({super.key, required this.filePath});
 
   @override
   _PDFViewerPageState createState() => _PDFViewerPageState();
@@ -38,7 +38,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Error"),
+        title: const Text("Error"),
         content: Text(message),
         actions: [
           TextButton(
@@ -46,7 +46,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
               Navigator.pop(context); // ダイアログを閉じる
               Navigator.pop(context); // トップに戻る
             },
-            child: Text("OK"),
+            child: const Text("OK"),
           ),
         ],
       ),
@@ -92,7 +92,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
               top: 16,
               right: 16,
               child: IconButton(
-                icon: Icon(Icons.menu),
+                icon: const Icon(Icons.menu),
                 onPressed: _toggleOverlay, // オーバーレイをトグル
               ),
             ),
@@ -105,23 +105,25 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                 right: 0,
                 child: AnimatedOpacity(
                   opacity: _isOverlayVisible ? 1.0 : 0.0,
-                  duration: Duration(milliseconds: 500),
+                  duration: const Duration(milliseconds: 500),
                   child: Container(
                     color: Colors.black.withOpacity(0.8),
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.arrow_back),
+                          icon: const Icon(Icons.arrow_back),
                           onPressed: () => Navigator.pop(context),
                         ),
                         Text(
                           widget.filePath.split("/").last,
-                          style: TextStyle(color: Colors.white70, fontSize: 18),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 18),
                         ),
                         IconButton(
-                          icon: Icon(Icons.close),
+                          icon: const Icon(Icons.close),
                           onPressed: _toggleOverlay,
                         ),
                       ],
@@ -137,23 +139,20 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                 right: 0,
                 child: AnimatedOpacity(
                   opacity: _isOverlayVisible ? 1.0 : 0.0,
-                  duration: Duration(milliseconds: 500),
+                  duration: const Duration(milliseconds: 500),
                   child: Container(
                     color: Colors.black.withOpacity(0.8),
-                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 16, horizontal: 16),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: 420,
-                        ),
+                        constraints: const BoxConstraints(maxWidth: 420),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ListTile(
-                              title: Text(
-                                "Scroll Direction",
-                              ),
+                              title: const Text("Scroll Direction"),
                               subtitle: Text(
                                 settings.scrollDirection == Axis.horizontal
                                     ? "Horizontal"
@@ -167,14 +166,11 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                               ),
                             ),
                             ListTile(
-                              title: Text(
-                                "Favorite",
-                              ),
+                              title: const Text("Favorite"),
                               subtitle: Text(
-                                settings.scrollDirection == Axis.horizontal
-                                    ? "Horizontal"
-                                    : "Vertical",
-                              ),
+                                  settings.scrollDirection == Axis.horizontal
+                                      ? "Horizontal"
+                                      : "Vertical"),
                               trailing: Checkbox(
                                 value:
                                     settings.scrollDirection == Axis.horizontal,

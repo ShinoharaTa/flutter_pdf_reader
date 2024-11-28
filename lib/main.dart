@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/library.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Riverpodをインポート
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'store/settings_store.dart';
 
 void main() {
@@ -17,23 +17,23 @@ class MyApp extends ConsumerWidget {
         brightness: Brightness.light,
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
         ),
-        buttonTheme: ButtonThemeData(buttonColor: Colors.blue),
+        buttonTheme: const ButtonThemeData(buttonColor: Colors.blue),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.black,
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
         ),
         buttonTheme: ButtonThemeData(buttonColor: Colors.grey[800]),
       ),
-      themeMode: themeMode, // 現在のテーマモード
+      themeMode: themeMode,
       home: LibraryScreen(),
     );
   }
