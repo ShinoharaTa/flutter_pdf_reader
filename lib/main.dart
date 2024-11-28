@@ -1,28 +1,16 @@
 import 'package:flutter/material.dart';
 import 'screens/library.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Riverpodをインポート
+import 'store/settings_store.dart';
 
 void main() {
   runApp(ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerWidget {
   @override
-  _MyAppState createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.system; // 初期状態はシステムに追従
-
-  void _toggleThemeMode() {
-    setState(() {
-      _themeMode =
-          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(settingsStoreProvider).themeMode;
     return MaterialApp(
       title: 'PDF Viewer with Library',
       theme: ThemeData(
@@ -30,8 +18,8 @@ class _MyAppState extends State<MyApp> {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
         ),
         buttonTheme: ButtonThemeData(buttonColor: Colors.blue),
       ),
@@ -45,7 +33,7 @@ class _MyAppState extends State<MyApp> {
         ),
         buttonTheme: ButtonThemeData(buttonColor: Colors.grey[800]),
       ),
-      themeMode: _themeMode, // 現在のテーマモード
+      themeMode: themeMode, // 現在のテーマモード
       home: LibraryScreen(),
     );
   }

@@ -5,7 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:pdf_reader/components/confirm_dialog.dart';
 import '../store/file_store.dart';
 import './viewer.dart';
-import '../store/providers.dart';
+import './settings.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -51,6 +51,19 @@ class LibraryScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text("Library"),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.settings),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsPage(), // 設定画面に遷移
+                  ),
+                );
+              },
+            ),
+          ],
           bottom: TabBar(
             tabs: [
               Tab(text: "Recent"),

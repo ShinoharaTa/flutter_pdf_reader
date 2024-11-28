@@ -91,3 +91,7 @@ class FileStoreState {
     );
   }
 }
+
+final fileStoreProvider = NotifierProvider<FileStore, FileStoreState>(() {
+  return FileStore();
+});

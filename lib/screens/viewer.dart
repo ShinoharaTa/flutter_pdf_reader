@@ -67,105 +67,126 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // PDFビュー
-            PdfView(
-              controller: _pdfController!,
-              scrollDirection: _scrollDirection,
-            ),
+        child: Stack(children: [
+          // PDFビュー
+          PdfView(
+            controller: _pdfController!,
+            scrollDirection: _scrollDirection,
+          ),
 
-            // 右上のメニューボタン
+          // 右上のメニューボタン
+          Positioned(
+            top: 16,
+            right: 16,
+            child: IconButton(
+              icon: Icon(Icons.menu, color: Colors.white),
+              onPressed: _toggleOverlay, // オーバーレイをトグル
+            ),
+          ),
+
+          // 上部バー（オーバーレイ）
+          if (_isOverlayVisible)
             Positioned(
-              top: 16,
-              right: 16,
-              child: IconButton(
-                icon: Icon(Icons.menu),
-                onPressed: _toggleOverlay, // オーバーレイをトグル
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                opacity: _isOverlayVisible ? 1.0 : 0.0,
+                duration: Duration(milliseconds: 500),
+                child: Container(
+                  color: Colors.black.withOpacity(0.7),
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Text(
+                        widget.filePath.split("/").last,
+                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: _toggleOverlay,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-
-            // 上部バー（オーバーレイ）
-            if (_isOverlayVisible)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  opacity: _isOverlayVisible ? 1.0 : 0.0,
-                  duration: Duration(milliseconds: 300),
-                  child: Container(
-                    color: Colors.black.withOpacity(0.7),
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        Text(
-                          "PDF Viewer",
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: Colors.white),
-                          onPressed: _toggleOverlay, // 閉じるボタン
-                        ),
-                      ],
+          // 下部オーバーレイ（スクロール方向設定）
+          if (_isOverlayVisible)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                opacity: _isOverlayVisible ? 1.0 : 0.0,
+                duration: Duration(milliseconds: 500),
+                child: Container(
+                  color: Colors.black.withOpacity(0.7),
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: 420,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Scroll Direction",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          ListTile(
+                            title: Text(
+                              "Vertical",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            leading: Radio<Axis>(
+                              value: Axis.vertical,
+                              groupValue: _scrollDirection,
+                              onChanged: (value) {
+                                setState(() {
+                                  _scrollDirection = value!;
+                                });
+                              },
+                              activeColor: Colors.blue,
+                            ),
+                          ),
+                          ListTile(
+                            title: Text(
+                              "Horizontal",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            leading: Radio<Axis>(
+                              value: Axis.horizontal,
+                              groupValue: _scrollDirection,
+                              onChanged: (value) {
+                                setState(() {
+                                  _scrollDirection = value!;
+                                });
+                              },
+                              activeColor: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-
-            // 下部バー（オーバーレイ）
-            if (_isOverlayVisible)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  opacity: _isOverlayVisible ? 1.0 : 0.0,
-                  duration: Duration(milliseconds: 300),
-                  child: Container(
-                    color: Colors.black.withOpacity(0.7),
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _scrollDirection = Axis.vertical;
-                            });
-                          },
-                          // style: ElevatedButton.styleFrom(
-                          //   primary: Colors.white,
-                          //   onPrimary: Colors.black,
-                          // ),
-                          child: Text("Vertical Scroll"),
-                        ),
-                        SizedBox(width: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _scrollDirection = Axis.horizontal;
-                            });
-                          },
-                          // style: ElevatedButton.styleFrom(
-                          //   primary: Colors.white,
-                          //   onPrimary: Colors.black,
-                          // ),
-                          child: Text("Horizontal Scroll"),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+            ),
+        ]),
       ),
     );
   }
