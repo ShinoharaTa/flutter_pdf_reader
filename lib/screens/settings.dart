@@ -25,6 +25,18 @@ class SettingsPage extends ConsumerWidget {
               onChanged: (value) => settingsNotifier.toggleThemeMode(),
             ),
           ),
+          ListTile(
+            title: const Text("Scroll Direction"),
+            subtitle: Text(
+              settings.scrollDirection == Axis.horizontal
+                  ? "Horizontal"
+                  : "Vertical",
+            ),
+            trailing: Switch(
+              value: settings.scrollDirection == Axis.horizontal,
+              onChanged: (value) => settingsNotifier.toggleScrollDirection(),
+            ),
+          ),
         ],
       ),
     );
