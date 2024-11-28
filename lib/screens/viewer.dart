@@ -70,18 +70,14 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     final settings = ref.watch(settingsStoreProvider);
     final settingsNotifier = ref.read(settingsStoreProvider.notifier);
     Axis scrollDirection =
-        ref.watch(settingsStoreProvider).scrollDirection; // 初期は縦スクロール
+        ref.watch(settingsStoreProvider).scrollDirection; // 初期スクロール方向のロード
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Theme(
-        data: ThemeData.dark().copyWith(
-            // unselectedWidgetColor: Colors.grey, // チェックボックスの未選択時の色
-            // toggleableActiveColor: Colors.blue, // チェックボックスの選択時の色
-            ),
+        data: ThemeData.dark(),
         child: SafeArea(
           child: Stack(children: [
-            // PDFビュー
             PdfView(
               controller: _pdfController!,
               scrollDirection: scrollDirection,
@@ -93,7 +89,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
               right: 16,
               child: IconButton(
                 icon: const Icon(Icons.menu),
-                onPressed: _toggleOverlay, // オーバーレイをトグル
+                onPressed: _toggleOverlay,
               ),
             ),
 
