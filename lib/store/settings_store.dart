@@ -4,26 +4,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsState {
   final ThemeMode themeMode;
+  final Axis scrollDirection;
 
-  SettingsState({required this.themeMode});
+  SettingsState({required this.themeMode, required this.scrollDirection});
 
-  SettingsState copyWith({ThemeMode? themeMode}) {
+  SettingsState copyWith({ThemeMode? themeMode, Axis? scrollDirection}) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
+      scrollDirection: scrollDirection ?? this.scrollDirection,
     );
   }
 }
 
 class SettingsStore extends StateNotifier<SettingsState> {
-  SettingsStore() : super(SettingsState(themeMode: ThemeMode.system)) {
+  SettingsStore()
+      : super(SettingsState(
+            themeMode: ThemeMode.system, scrollDirection: Axis.horizontal)) {
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final isDarkTheme = prefs.getBool('isDarkTheme') ?? false;
+    final scrollDirection = prefs.getBool('isScrollVertical') ?? false;
     state = state.copyWith(
       themeMode: isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+      scrollDirection: scrollDirection ? Axis.horizontal : Axis.vertical,
     );
   }
 
@@ -33,6 +39,16 @@ class SettingsStore extends StateNotifier<SettingsState> {
     final newThemeMode = isDarkTheme ? ThemeMode.light : ThemeMode.dark;
     await prefs.setBool('isDarkTheme', newThemeMode == ThemeMode.dark);
     state = state.copyWith(themeMode: newThemeMode);
+  }
+
+  Future<void> toggleScrollDirection() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isScrollHorizontal = state.scrollDirection == Axis.horizontal;
+    final newScrollDirection =
+        isScrollHorizontal ? Axis.vertical : Axis.horizontal;
+    await prefs.setBool(
+        'isScrollHorizontal', newScrollDirection == Axis.horizontal);
+    state = state.copyWith(scrollDirection: newScrollDirection);
   }
 }
 

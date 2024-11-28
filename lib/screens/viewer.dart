@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfx/pdfx.dart';
+import '../store/settings_store.dart';
 
-class PDFViewerPage extends StatefulWidget {
+class PDFViewerPage extends ConsumerStatefulWidget {
   final String filePath;
 
   const PDFViewerPage({required this.filePath});
@@ -10,9 +12,8 @@ class PDFViewerPage extends StatefulWidget {
   _PDFViewerPageState createState() => _PDFViewerPageState();
 }
 
-class _PDFViewerPageState extends State<PDFViewerPage> {
+class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
   PdfController? _pdfController;
-  Axis _scrollDirection = Axis.vertical; // 初期は縦スクロール
   bool _isOverlayVisible = false; // 初期状態ではオーバーレイは非表示
 
   @override
@@ -66,127 +67,134 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsStoreProvider);
+    final settingsNotifier = ref.read(settingsStoreProvider.notifier);
+    Axis scrollDirection =
+        ref.watch(settingsStoreProvider).scrollDirection; // 初期は縦スクロール
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(children: [
-          // PDFビュー
-          PdfView(
-            controller: _pdfController!,
-            scrollDirection: _scrollDirection,
-          ),
-
-          // 右上のメニューボタン
-          Positioned(
-            top: 16,
-            right: 16,
-            child: IconButton(
-              icon: Icon(Icons.menu, color: Colors.white),
-              onPressed: _toggleOverlay, // オーバーレイをトグル
+      body: Theme(
+        data: ThemeData.dark().copyWith(
+            // unselectedWidgetColor: Colors.grey, // チェックボックスの未選択時の色
+            // toggleableActiveColor: Colors.blue, // チェックボックスの選択時の色
             ),
-          ),
+        child: SafeArea(
+          child: Stack(children: [
+            // PDFビュー
+            PdfView(
+              controller: _pdfController!,
+              scrollDirection: scrollDirection,
+            ),
 
-          // 上部バー（オーバーレイ）
-          if (_isOverlayVisible)
+            // 右上のメニューボタン
             Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: AnimatedOpacity(
-                opacity: _isOverlayVisible ? 1.0 : 0.0,
-                duration: Duration(milliseconds: 500),
-                child: Container(
-                  color: Colors.black.withOpacity(0.7),
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      Text(
-                        widget.filePath.split("/").last,
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.white),
-                        onPressed: _toggleOverlay,
-                      ),
-                    ],
+              top: 16,
+              right: 16,
+              child: IconButton(
+                icon: Icon(Icons.menu),
+                onPressed: _toggleOverlay, // オーバーレイをトグル
+              ),
+            ),
+
+            // 上部バー（オーバーレイ）
+            if (_isOverlayVisible)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _isOverlayVisible ? 1.0 : 0.0,
+                  duration: Duration(milliseconds: 500),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.8),
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Text(
+                          widget.filePath.split("/").last,
+                          style: TextStyle(color: Colors.white70, fontSize: 18),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close),
+                          onPressed: _toggleOverlay,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          // 下部オーバーレイ（スクロール方向設定）
-          if (_isOverlayVisible)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: AnimatedOpacity(
-                opacity: _isOverlayVisible ? 1.0 : 0.0,
-                duration: Duration(milliseconds: 500),
-                child: Container(
-                  color: Colors.black.withOpacity(0.7),
-                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: 420,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Scroll Direction",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+            // 下部オーバーレイ（スクロール方向設定）
+            if (_isOverlayVisible)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _isOverlayVisible ? 1.0 : 0.0,
+                  duration: Duration(milliseconds: 500),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.8),
+                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: 420,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              title: Text(
+                                "Scroll Direction",
+                                // style: TextStyle(color: Colors.white)
+                              ),
+                              subtitle: Text(
+                                settings.scrollDirection == Axis.horizontal
+                                    ? "Horizontal"
+                                    : "Vertical",
+                                // style: TextStyle(color: Colors.white70)
+                              ),
+                              trailing: Switch(
+                                value:
+                                    settings.scrollDirection == Axis.horizontal,
+                                onChanged: (value) =>
+                                    settingsNotifier.toggleScrollDirection(),
+                              ),
                             ),
-                          ),
-                          ListTile(
-                            title: Text(
-                              "Vertical",
-                              style: TextStyle(color: Colors.white),
+                            ListTile(
+                              title: Text(
+                                "Favorite",
+                                // style: TextStyle(color: Colors.white)
+                              ),
+                              subtitle: Text(
+                                settings.scrollDirection == Axis.horizontal
+                                    ? "Horizontal"
+                                    : "Vertical",
+                                // style: TextStyle(color: Colors.white70)
+                              ),
+                              trailing: Checkbox(
+                                value:
+                                    settings.scrollDirection == Axis.horizontal,
+                                onChanged: (value) =>
+                                    settingsNotifier.toggleScrollDirection(),
+                              ),
                             ),
-                            leading: Radio<Axis>(
-                              value: Axis.vertical,
-                              groupValue: _scrollDirection,
-                              onChanged: (value) {
-                                setState(() {
-                                  _scrollDirection = value!;
-                                });
-                              },
-                              activeColor: Colors.blue,
-                            ),
-                          ),
-                          ListTile(
-                            title: Text(
-                              "Horizontal",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            leading: Radio<Axis>(
-                              value: Axis.horizontal,
-                              groupValue: _scrollDirection,
-                              onChanged: (value) {
-                                setState(() {
-                                  _scrollDirection = value!;
-                                });
-                              },
-                              activeColor: Colors.blue,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ]),
+          ]),
+        ),
       ),
     );
   }
