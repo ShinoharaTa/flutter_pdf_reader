@@ -78,11 +78,13 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
         data: ThemeData.dark(),
         child: SafeArea(
           child: Stack(children: [
-            PdfView(
-              controller: _pdfController!,
-              scrollDirection: scrollDirection,
+            GestureDetector(
+              onTap: _toggleOverlay,
+              child: PdfView(
+                controller: _pdfController!,
+                scrollDirection: scrollDirection,
+              ),
             ),
-
             // 右上のメニューボタン
             Positioned(
               top: 16,
