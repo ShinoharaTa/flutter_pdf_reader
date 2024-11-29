@@ -99,6 +99,9 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 flutter_icons:
-  android: true
   ios: true
   image_path: "assets/logo.png"
+  remove_alpha_ios: true
+  android: true
+  adaptive_icon_background: "assets/background.png"
+  adaptive_icon_foreground: "assets/foreground.png"
