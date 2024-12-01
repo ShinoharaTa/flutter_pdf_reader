@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf_reader/store/file_store.dart';
 import 'package:pdfx/pdfx.dart';
-import '../store/settings_store.dart';
+import 'package:pdf_reader/store/settings_store.dart';
 
 class PDFViewerPage extends ConsumerStatefulWidget {
   final String filePath;
@@ -108,6 +109,9 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     final settingsNotifier = ref.read(settingsStoreProvider.notifier);
     Axis scrollDirection =
         ref.watch(settingsStoreProvider).scrollDirection; // 初期スクロール方向のロード
+    final fileStore = ref.watch(fileStoreProvider);
+    final fileStoreNotifier = ref.read(fileStoreProvider.notifier);
+    final isFavorite = fileStore.favoriteFiles.contains(widget.filePath);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -223,17 +227,24 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                   ),
                                   IconButton(
                                     icon: Icon(
-                                      settings.scrollDirection ==
-                                              Axis.horizontal
+                                      isFavorite
                                           ? Icons.star_rounded
                                           : Icons.star_border_rounded,
-                                      color: settings.scrollDirection ==
-                                              Axis.horizontal
+                                      color: isFavorite
                                           ? Colors.yellow
                                           : Colors.white60,
                                       size: 36.0,
                                     ),
-                                    onPressed: _toggleOverlay,
+                                    onPressed: () async {
+                                      if (isFavorite) {
+                                        await fileStoreNotifier
+                                            .removeFavoriteFile(
+                                                widget.filePath);
+                                      } else {
+                                        await fileStoreNotifier
+                                            .addFavoriteFile(widget.filePath);
+                                      }
+                                    },
                                   ),
                                 ],
                               ),
