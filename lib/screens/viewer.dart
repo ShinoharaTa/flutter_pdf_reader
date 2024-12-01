@@ -96,9 +96,9 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
         currentPage = page;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid page number')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Invalid page number')),
+      // );
     }
   }
 
@@ -149,7 +149,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                 child: TextButton(
                   onPressed: _toggleOverlay,
                   child: Text("$currentPage / $totalPages",
-                      style: TextStyle(color: Colors.white)),
+                      style: const TextStyle(color: Colors.white)),
                 ),
               ),
 
@@ -214,9 +214,8 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                     icon: Icon(
                                       settings.scrollDirection ==
                                               Axis.horizontal
-                                          ? Icons
-                                              .swap_horizontal_circle_outlined
-                                          : Icons.swap_vertical_circle_outlined,
+                                          ? Icons.swap_horiz_rounded
+                                          : Icons.swap_vert_rounded,
                                       size: 36.0,
                                     ),
                                     onPressed: () => settingsNotifier
@@ -247,30 +246,53 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                 },
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
-                                    "Page: ",
-                                    style: TextStyle(
-                                        color: Colors.white70, fontSize: 16),
-                                  ),
-                                  SizedBox(
-                                    width: 56,
-                                    child: TextField(
-                                      controller: _pageController,
-                                      keyboardType: TextInputType.number,
-                                      textAlign: TextAlign.center,
-                                      onSubmitted: (value) =>
-                                          _goToPage(int.tryParse(value)),
-                                      style: const TextStyle(
-                                          color: Colors.white70, fontSize: 16),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.navigate_before_rounded,
+                                      size: 36.0,
                                     ),
+                                    onPressed: () => _goToPage(currentPage - 1),
                                   ),
-                                  // Text("$currentPage"),
-                                  Text(
-                                    "/ $totalPages",
-                                    style: const TextStyle(
-                                        color: Colors.white70, fontSize: 16),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        "Page: ",
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 16),
+                                      ),
+                                      SizedBox(
+                                        width: 48,
+                                        child: TextField(
+                                          controller: _pageController,
+                                          keyboardType: TextInputType.number,
+                                          textAlign: TextAlign.center,
+                                          onSubmitted: (value) =>
+                                              _goToPage(int.tryParse(value)),
+                                          style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 16),
+                                        ),
+                                      ),
+                                      // Text("$currentPage"),
+                                      Text(
+                                        "/ $totalPages",
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.navigate_next_rounded,
+                                      size: 36.0,
+                                    ),
+                                    onPressed: () => _goToPage(currentPage + 1),
                                   ),
                                 ],
                               ),
