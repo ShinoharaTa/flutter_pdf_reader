@@ -208,9 +208,15 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Slider(
+                                value: currentPage.toDouble(),
+                                max: totalPages.toDouble(),
+                                divisions: totalPages - 1,
+                                onChanged: (double value) {
+                                  _goToPage(value.toInt().toString());
+                                },
+                              ),
                               Row(
-                                // mainAxisSize: MainAxisSize.min,
-                                // crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Text(
