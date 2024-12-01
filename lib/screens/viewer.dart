@@ -89,8 +89,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     }
   }
 
-  void _goToPage(String pageText) {
-    final page = int.tryParse(pageText); // 入力を数値に変換
+  void _goToPage(int? page) {
     if (page != null && page > 0 && page <= totalPages) {
       _pdfController?.jumpToPage(page); // 該当ページに移動
       setState(() {
@@ -244,7 +243,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                 max: totalPages.toDouble(),
                                 divisions: totalPages - 1,
                                 onChanged: (double value) {
-                                  _goToPage(value.toInt().toString());
+                                  _goToPage(value.toInt());
                                 },
                               ),
                               Row(
@@ -261,7 +260,8 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                       controller: _pageController,
                                       keyboardType: TextInputType.number,
                                       textAlign: TextAlign.center,
-                                      onSubmitted: _goToPage,
+                                      onSubmitted: (value) =>
+                                          _goToPage(int.tryParse(value)),
                                       style: const TextStyle(
                                           color: Colors.white70, fontSize: 16),
                                     ),
