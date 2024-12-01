@@ -208,6 +208,37 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      settings.scrollDirection ==
+                                              Axis.horizontal
+                                          ? Icons
+                                              .swap_horizontal_circle_outlined
+                                          : Icons.swap_vertical_circle_outlined,
+                                      size: 36.0,
+                                    ),
+                                    onPressed: () => settingsNotifier
+                                        .toggleScrollDirection(),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      settings.scrollDirection ==
+                                              Axis.horizontal
+                                          ? Icons.star_rounded
+                                          : Icons.star_border_rounded,
+                                      color: settings.scrollDirection ==
+                                              Axis.horizontal
+                                          ? Colors.yellow
+                                          : Colors.white60,
+                                      size: 36.0,
+                                    ),
+                                    onPressed: _toggleOverlay,
+                                  ),
+                                ],
+                              ),
                               Slider(
                                 value: currentPage.toDouble(),
                                 max: totalPages.toDouble(),
@@ -242,33 +273,6 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                         color: Colors.white70, fontSize: 16),
                                   ),
                                 ],
-                              ),
-                              ListTile(
-                                title: const Text("Scroll Direction"),
-                                subtitle: Text(
-                                  settings.scrollDirection == Axis.horizontal
-                                      ? "Horizontal"
-                                      : "Vertical",
-                                ),
-                                trailing: Switch(
-                                  value: settings.scrollDirection ==
-                                      Axis.horizontal,
-                                  onChanged: (value) =>
-                                      settingsNotifier.toggleScrollDirection(),
-                                ),
-                              ),
-                              ListTile(
-                                title: const Text("Favorite"),
-                                subtitle: Text(
-                                    settings.scrollDirection == Axis.horizontal
-                                        ? "Horizontal"
-                                        : "Vertical"),
-                                trailing: Checkbox(
-                                  value: settings.scrollDirection ==
-                                      Axis.horizontal,
-                                  onChanged: (value) =>
-                                      settingsNotifier.toggleScrollDirection(),
-                                ),
                               ),
                             ],
                           ),
