@@ -7,32 +7,32 @@ void main() {
   runApp(ProviderScope(child: MyApp()));
 }
 
+final ThemeData lightTheme = ThemeData(
+  brightness: Brightness.light,
+  useMaterial3: true, // Material 3 を有効化
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFF666666), // グレースケールのベースカラー
+    brightness: Brightness.light,
+  ),
+);
+
+final ThemeData darkTheme = ThemeData(
+  brightness: Brightness.dark,
+  useMaterial3: true, // Material 3 を有効化
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFF666666), // グレースケールのベースカラー
+    brightness: Brightness.dark,
+  ),
+);
+
 class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(settingsStoreProvider).themeMode;
     return MaterialApp(
       title: 'PDF Viewer with Library',
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-        ),
-        buttonTheme: const ButtonThemeData(buttonColor: Colors.blue),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-        ),
-        buttonTheme: ButtonThemeData(buttonColor: Colors.grey[800]),
-      ),
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: themeMode,
       home: LibraryScreen(),
     );

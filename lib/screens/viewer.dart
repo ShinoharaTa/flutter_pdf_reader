@@ -152,8 +152,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                 right: 32,
                 child: TextButton(
                   onPressed: _toggleOverlay,
-                  child: Text("$currentPage / $totalPages",
-                      style: const TextStyle(color: Colors.white)),
+                  child: Text("$currentPage / $totalPages"),
                 ),
               ),
 
@@ -179,8 +178,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                           ),
                           Text(
                             widget.filePath.split("/").last,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 18),
+                            style: const TextStyle(fontSize: 18),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close),
@@ -232,7 +230,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                           : Icons.star_border_rounded,
                                       color: isFavorite
                                           ? Colors.yellow
-                                          : Colors.white60,
+                                          : Colors.white70,
                                       size: 36.0,
                                     ),
                                     onPressed: () async {
@@ -272,9 +270,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                     children: [
                                       const Text(
                                         "Page: ",
-                                        style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 16),
+                                        style: TextStyle(fontSize: 16),
                                       ),
                                       SizedBox(
                                         width: 48,
@@ -284,17 +280,12 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                                           textAlign: TextAlign.center,
                                           onSubmitted: (value) =>
                                               _goToPage(int.tryParse(value)),
-                                          style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 16),
+                                          style: const TextStyle(fontSize: 16),
                                         ),
                                       ),
-                                      // Text("$currentPage"),
                                       Text(
                                         "/ $totalPages",
-                                        style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 16),
+                                        style: const TextStyle(fontSize: 16),
                                       ),
                                     ],
                                   ),
