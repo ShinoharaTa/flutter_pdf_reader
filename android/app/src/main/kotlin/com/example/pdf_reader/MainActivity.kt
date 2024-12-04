@@ -1,4 +1,4 @@
-package com.example.pdf_reader
+package net.shino3.flextapdf
 
 import io.flutter.embedding.android.FlutterActivity
 

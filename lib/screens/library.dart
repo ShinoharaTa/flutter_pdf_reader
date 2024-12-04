@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:pdf_reader/components/confirm_dialog.dart';
+import 'package:flextapdf/components/confirm_dialog.dart';
 import '../store/file_store.dart';
 import './viewer.dart';
 import './settings.dart';
