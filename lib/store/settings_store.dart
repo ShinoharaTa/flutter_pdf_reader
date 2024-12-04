@@ -47,7 +47,7 @@ class SettingsStore extends StateNotifier<SettingsState> {
     final newScrollDirection =
         isScrollHorizontal ? Axis.vertical : Axis.horizontal;
     await prefs.setBool(
-        'isScrollHorizontal', newScrollDirection == Axis.horizontal);
+        'isScrollVertical', newScrollDirection == Axis.horizontal);
     state = state.copyWith(scrollDirection: newScrollDirection);
   }
 }
