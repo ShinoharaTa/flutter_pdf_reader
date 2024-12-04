@@ -33,15 +33,6 @@ final ThemeData lightTheme = ThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
   ),
   tabBarTheme: TabBarTheme(
-    // indicator: BoxDecoration(
-    //   color: Color(0xFFF5F9FC),
-    //   border: Border(
-    //     bottom: BorderSide(
-    //       color: Color(0xFF3498DB),
-    //       width: 2.0,
-    //     ),
-    //   ),
-    // ),
     labelColor: Color(0xFF3498DB),
     unselectedLabelColor: Color(0xFF666666),
     labelStyle: TextStyle(
@@ -52,7 +43,6 @@ final ThemeData lightTheme = ThemeData(
       fontSize: 14,
       fontWeight: FontWeight.normal,
     ),
-    // tabAlignment: TabAlignment.fill, // 幅100%
   ),
   listTileTheme: ListTileThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -86,15 +76,6 @@ final ThemeData darkTheme = ThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
   ),
   tabBarTheme: TabBarTheme(
-    // indicator: BoxDecoration(
-    //   color: Color(0xFF1E2530),
-    //   border: Border(
-    //     bottom: BorderSide(
-    //       color: Color(0xFF3498DB),
-    //       width: 2.0,
-    //     ),
-    //   ),
-    // ),
     labelColor: Color(0xFF3498DB),
     unselectedLabelColor: Color(0xFF8F9BA8),
     labelStyle: TextStyle(
@@ -105,7 +86,6 @@ final ThemeData darkTheme = ThemeData(
       fontSize: 14,
       fontWeight: FontWeight.normal,
     ),
-    // tabAlignment: TabAlignment.fill, // 幅100%
   ),
   listTileTheme: ListTileThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -118,7 +98,7 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(settingsStoreProvider).themeMode;
     return MaterialApp(
-      title: 'PDF Viewer with Library',
+      title: 'Flexta PDF Reader',
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: themeMode,
