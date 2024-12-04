@@ -1,3 +1,4 @@
+import 'package:flextapdf/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -116,7 +117,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Theme(
-        data: ThemeData.dark(),
+        data: darkTheme,
         child: SafeArea(
           child: KeyboardListener(
             focusNode: FocusNode(),
@@ -147,14 +148,14 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
               ),
 
               // 右上のメニューボタン
-              Positioned(
-                bottom: 16,
-                right: 32,
-                child: TextButton(
-                  onPressed: _toggleOverlay,
-                  child: Text("$currentPage / $totalPages"),
-                ),
-              ),
+              // Positioned(
+              //   bottom: 16,
+              //   right: 32,
+              //   child: TextButton(
+              //     onPressed: _toggleOverlay,
+              //     child: Text("$currentPage / $totalPages"),
+              //   ),
+              // ),
 
               // 上部バー（オーバーレイ）
               if (_isOverlayVisible)

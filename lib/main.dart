@@ -48,6 +48,20 @@ final ThemeData lightTheme = ThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
   ),
+  sliderTheme: SliderThemeData(
+    activeTrackColor: Color(0xFF3498DB),
+    inactiveTrackColor: Color(0xFFE0E0E0),
+    trackHeight: 10.0,
+    trackShape: RoundedRectSliderTrackShape(),
+    thumbColor: Colors.white,
+    thumbShape: RoundSliderThumbShape(
+      enabledThumbRadius: 12.0,
+      elevation: 2.0,
+      pressedElevation: 4.0,
+    ),
+    overlayColor: Color(0xFF3498DB).withOpacity(0.2),
+    overlayShape: RoundSliderOverlayShape(overlayRadius: 24.0),
+  ),
 );
 
 final ThemeData darkTheme = ThemeData(
@@ -90,6 +104,20 @@ final ThemeData darkTheme = ThemeData(
   listTileTheme: ListTileThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  ),
+  sliderTheme: SliderThemeData(
+    activeTrackColor: Color(0xFF3498DB),
+    inactiveTrackColor: Color(0xFF505050),
+    trackHeight: 10.0,
+    trackShape: RoundedRectSliderTrackShape(),
+    thumbColor: Colors.white,
+    thumbShape: RoundSliderThumbShape(
+      enabledThumbRadius: 12.0,
+      elevation: 2.0,
+      pressedElevation: 4.0,
+    ),
+    overlayColor: Color(0xFF3498DB).withOpacity(0.2),
+    overlayShape: RoundSliderOverlayShape(overlayRadius: 24.0),
   ),
 );
 
