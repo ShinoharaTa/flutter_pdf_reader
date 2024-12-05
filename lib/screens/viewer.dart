@@ -27,9 +27,14 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
   void initState() {
     super.initState();
     try {
+      final pdfInfo =
+          ref.read(fileStoreProvider.notifier).getPDFInfo(widget.filePath);
+      currentPage = pdfInfo?.lastPage ?? 1;
+      print(pdfInfo?.lastPage);
+      _pageController.text = currentPage.toString();
       _pdfController = PdfController(
-        document: PdfDocument.openFile(widget.filePath),
-      );
+          document: PdfDocument.openFile(widget.filePath),
+          initialPage: currentPage);
       _pdfController!.document.then((doc) {
         setState(() {
           totalPages = doc.pagesCount;
@@ -175,7 +180,17 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.arrow_back),
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () async {
+                              await ref
+                                  .read(fileStoreProvider.notifier)
+                                  .updatePDFState(
+                                    widget.filePath,
+                                    lastPage: currentPage,
+                                    totalPages: totalPages,
+                                    isRead: currentPage == totalPages,
+                                  );
+                              Navigator.of(context).pop();
+                            },
                           ),
                           Text(
                             widget.filePath.split("/").last,
