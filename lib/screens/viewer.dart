@@ -67,6 +67,10 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
 
   @override
   void dispose() {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
     _pdfController?.dispose();
     super.dispose();
   }

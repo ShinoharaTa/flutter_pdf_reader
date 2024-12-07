@@ -3,6 +3,7 @@ import 'screens/library.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'store/settings_store.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() {
   runApp(ProviderScope(child: MyApp()));
 }
@@ -131,6 +132,7 @@ class MyApp extends ConsumerWidget {
       darkTheme: darkTheme,
       themeMode: themeMode,
       home: LibraryScreen(),
+      navigatorKey: navigatorKey,
     );
   }
 }

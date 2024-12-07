@@ -1,3 +1,5 @@
+import 'package:flextapdf/components/confirm_dialog.dart';
+import 'package:flextapdf/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,7 +55,7 @@ class FileStore extends Notifier<FileStoreState> {
     String path = join(await getDatabasesPath(), 'pdf_info.db');
     _database = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (Database db, int version) async {
         await db.execute('''
           CREATE TABLE pdf_info(
@@ -70,16 +72,63 @@ class FileStore extends Notifier<FileStoreState> {
           // 既存のテーブルにtotalPagesカラムを追加
           await db.execute('''
             ALTER TABLE pdf_info
-            ADD COLUMN totalPages INTEGER NOT NULL DEFAULT 0
+            ADD COLUMN totalPage INTEGER NOT NULL DEFAULT 0
+          ''');
+        }
+        if (oldVersion < 3) {
+          // 既存のテーブルにtotalPageカラムに修正追加
+          await db.execute('''
+            ALTER TABLE pdf_info
+            RENAME COLUMN totalPage TO totalPages
           ''');
         }
       },
     );
   }
 
+  Future<void> _resetDatabase() async {
+    try {
+      await _database.close();
+    } catch (e) {
+      print('Database already.');
+    }
+    try {
+      String path = join(await getDatabasesPath(), 'pdf_info.db');
+      _database = await openDatabase(
+        path,
+        version: 3,
+        onCreate: (Database db, int version) async {
+          // 既存のテーブルを削除
+          await db.execute('DROP TABLE IF EXISTS pdf_info');
+        },
+      );
+    } catch (e) {
+      print('Database reset failed: $e');
+      rethrow;
+    }
+  }
+
   // データの永続化をロード
   Future<void> _loadData() async {
-    await _initDatabase();
+    try {
+      await _initDatabase();
+    } catch (e) {
+      print('Database initialization failed: $e');
+
+      final context = navigatorKey.currentContext!;
+      final shouldReset = await ConfirmationDialog.show(
+        context: context,
+        title: 'データベースエラー',
+        content: 'データベースの初期化に失敗しました。データをリセットしますか？',
+        confirmText: 'リセット',
+        cancelText: 'キャンセル',
+      );
+
+      if (shouldReset == true) {
+        await _resetDatabase();
+        await _initDatabase();
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
 
     // PDFファイル情報の読み込み
