@@ -17,8 +17,11 @@
 | プラットフォーム | 状態 |
 |---|---|
 | Android | 動作確認済み（Android 15 / API 35） |
-| iOS / macOS | 未確認。CocoaPods が必要（`brew install cocoapods`） |
+| iOS | ビルド・起動確認済み（シミュレータ）。CocoaPods が必要（`brew install cocoapods`） |
+| macOS | ビルド確認済み。CocoaPods が必要 |
 | Windows / Linux / Web | 未確認 |
+
+`pdfx` と `device_info_plus` は Swift Package Manager 未対応のため、iOS / macOS は当面 CocoaPods が必要。
 
 ## 開発環境
 
