@@ -33,7 +33,7 @@ final ThemeData lightTheme = ThemeData(
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
   ),
-  tabBarTheme: TabBarTheme(
+  tabBarTheme: TabBarThemeData(
     labelColor: Color(0xFF3498DB),
     unselectedLabelColor: Color(0xFF666666),
     labelStyle: TextStyle(
@@ -90,7 +90,7 @@ final ThemeData darkTheme = ThemeData(
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
   ),
-  tabBarTheme: TabBarTheme(
+  tabBarTheme: TabBarThemeData(
     labelColor: Color(0xFF3498DB),
     unselectedLabelColor: Color(0xFF8F9BA8),
     labelStyle: TextStyle(
