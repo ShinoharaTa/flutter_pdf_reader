@@ -53,7 +53,7 @@ Flutter 3.44 系で動作確認済み。Android は Gradle 8.12 / AGP 8.7.3 / Ko
 
 `key.properties` が無い環境でも debug ビルドが通るよう `android/app/build.gradle` の `signingConfigs` は存在チェックでガードしてある。外すと debug ビルドまで `path may not be null` で落ちる。
 
-iOS / macOS は **CocoaPods 未インストールのためビルド不可**。`brew install cocoapods` が必要。
+iOS / macOS は CocoaPods が必要（`brew install cocoapods`）。`pdfx` と `device_info_plus` が Swift Package Manager 未対応のため。iOS シミュレータでの起動を確認済み。
 
 ## 注意
 
