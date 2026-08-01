@@ -36,6 +36,8 @@ class SettingsStore extends StateNotifier<SettingsState> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // 読み込み中に破棄されていることがある（画面遷移やテストの終了時）。
+    if (!mounted) return;
 
     state = SettingsState(
       themeMode: _readThemeMode(prefs),
