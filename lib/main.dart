@@ -5,7 +5,7 @@ import 'store/settings_store.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() {
-  runApp(ProviderScope(child: MyApp()));
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 final ThemeData lightTheme = ThemeData(
@@ -16,7 +16,6 @@ final ThemeData lightTheme = ThemeData(
     primary: Color(0xFF1B4B72),
     secondary: Color(0xFF3498DB),
     surface: Colors.white,
-    background: Color(0xFFF5F9FC),
     brightness: Brightness.light,
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
@@ -60,7 +59,7 @@ final ThemeData lightTheme = ThemeData(
       elevation: 2.0,
       pressedElevation: 4.0,
     ),
-    overlayColor: Color(0xFF3498DB).withOpacity(0.2),
+    overlayColor: Color(0xFF3498DB).withValues(alpha: 0.2),
     overlayShape: RoundSliderOverlayShape(overlayRadius: 24.0),
   ),
 );
@@ -73,7 +72,6 @@ final ThemeData darkTheme = ThemeData(
     primary: Color(0xFF3498DB),
     secondary: Color(0xFF1B4B72),
     surface: Color(0xFF1E1E1E),
-    background: Color(0xFF121212),
     brightness: Brightness.dark,
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
@@ -117,12 +115,14 @@ final ThemeData darkTheme = ThemeData(
       elevation: 2.0,
       pressedElevation: 4.0,
     ),
-    overlayColor: Color(0xFF3498DB).withOpacity(0.2),
+    overlayColor: Color(0xFF3498DB).withValues(alpha: 0.2),
     overlayShape: RoundSliderOverlayShape(overlayRadius: 24.0),
   ),
 );
 
 class MyApp extends ConsumerWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(settingsStoreProvider).themeMode;
