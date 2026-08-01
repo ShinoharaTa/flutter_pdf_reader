@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../components/confirm_dialog.dart';
 import '../models/library_document.dart';
@@ -177,11 +176,6 @@ class _DirectoryTab extends ConsumerWidget {
   final List<String> directories;
   const _DirectoryTab({required this.directories});
 
-  Future<bool> _requestStoragePermission() async {
-    final status = await Permission.manageExternalStorage.request();
-    return status.isGranted;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
@@ -189,24 +183,16 @@ class _DirectoryTab extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: ElevatedButton.icon(
+            // フォルダ選択は SAF 経由なので、ストレージ権限を要求しない。
+            // MANAGE_EXTERNAL_STORAGE は Play の審査対象で PDF リーダーは
+            // 通らない可能性が高く、READ/WRITE_EXTERNAL_STORAGE も
+            // Android 13 以降は事実上機能しない。
             onPressed: () async {
-              final isGranted = await _requestStoragePermission();
-              if (!context.mounted) return;
-              if (!isGranted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text("Storage permission is required to access folders."),
-                  ),
-                );
-                return;
-              }
               final directory = await getDirectoryPath();
-              if (directory != null) {
-                await ref
-                    .read(libraryStoreProvider.notifier)
-                    .addDirectory(directory);
-              }
+              if (directory == null) return;
+              await ref
+                  .read(libraryStoreProvider.notifier)
+                  .addDirectory(directory);
             },
             icon: const Icon(Icons.add),
             label: const Text("Add Directory"),
