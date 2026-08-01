@@ -1,52 +1,43 @@
 import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_selector/file_selector.dart';
-import 'package:flextapdf/components/confirm_dialog.dart';
-import '../store/file_store.dart';
-import './viewer.dart';
-import './settings.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import '../components/confirm_dialog.dart';
+import '../models/library_document.dart';
+import '../store/library_store.dart';
+import './settings.dart';
+import './viewer.dart';
 
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
-  Future<bool> _requestStoragePermission() async {
-    final status = await Permission.manageExternalStorage.request();
-    return status.isGranted;
-  }
+  /// ファイルを選び、アプリ内ライブラリへ取り込んでからビューアを開く。
+  Future<void> _pickAndOpen(BuildContext context, WidgetRef ref) async {
+    const fileTypeGroup = XTypeGroup(label: 'PDF files', extensions: ['pdf']);
+    final file = await openFile(acceptedTypeGroups: [fileTypeGroup]);
+    if (file == null) return;
 
-  List<Widget> _getDirectoryContent(
-      String directoryPath, WidgetRef ref, BuildContext context) {
-    final dir = Directory(directoryPath);
-    final files = dir.listSync();
+    final doc = await ref.read(libraryStoreProvider.notifier).importFile(file.path);
+    if (!context.mounted) return;
 
-    return files.map((file) {
-      if (file is Directory) {
-        return ExpansionTile(
-            title: Text(file.path.split('/').last),
-            children: _getDirectoryContent(file.path, ref, context));
-      } else {
-        return ListTile(
-          title: Text(file.path.split('/').last),
-          onTap: () async {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PDFViewerPage(filePath: file.path),
-              ),
-            );
-            final notifier = ref.read(fileStoreProvider.notifier);
-            await notifier.addRecentFile(file.path);
-          },
-        );
-      }
-    }).toList();
+    if (doc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ファイルを取り込めませんでした')),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PDFViewerPage(documentId: doc.id)),
+    );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fileStore = ref.watch(fileStoreProvider);
+    final library = ref.watch(libraryStoreProvider);
 
     return DefaultTabController(
       length: 3,
@@ -59,9 +50,7 @@ class LibraryScreen extends ConsumerWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsPage(), // 設定画面に遷移
-                  ),
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
                 );
               },
             ),
@@ -74,72 +63,101 @@ class LibraryScreen extends ConsumerWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildRecentTab(fileStore, ref),
-            _buildFavoriteTab(fileStore, ref),
-            _buildDirectoryTab(fileStore, ref),
-          ],
-        ),
+        body: library.errorMessage != null
+            ? _ErrorView(message: library.errorMessage!)
+            : library.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    children: [
+                      _DocumentList(
+                        documents: library.recent,
+                        emptyMessage: '右下のボタンから PDF を追加してください',
+                      ),
+                      _DocumentList(
+                        documents: library.favorites,
+                        emptyMessage: 'ビューアの星ボタンでお気に入りに追加できます',
+                      ),
+                      _DirectoryTab(directories: library.directories),
+                    ],
+                  ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () async {
-            const fileTypeGroup = XTypeGroup(
-              label: 'PDF files', // ダイアログに表示されるフィルタ名
-              extensions: ['pdf'], // 拡張子フィルタ
-            );
-            final file = await openFile(acceptedTypeGroups: [fileTypeGroup]);
-
-            if (file != null) {
-              final notifier = ref.read(fileStoreProvider.notifier);
-              await notifier.addRecentFile(file.path);
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PDFViewerPage(filePath: file.path),
-                ),
-              );
-            } else {
-              print('No file selected.');
-            }
-          },
-          child: Icon(Icons.folder_open),
+          onPressed: () => _pickAndOpen(context, ref),
           tooltip: "Open PDF",
+          child: const Icon(Icons.folder_open),
         ),
       ),
     );
   }
+}
 
-  Widget _buildRecentTab(FileStoreState state, WidgetRef ref) {
+class _ErrorView extends StatelessWidget {
+  final String message;
+  const _ErrorView({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 16),
+            Text(message, textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Recent / Favorite で共通のドキュメント一覧。
+class _DocumentList extends ConsumerWidget {
+  final List<LibraryDocument> documents;
+  final String emptyMessage;
+
+  const _DocumentList({required this.documents, required this.emptyMessage});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (documents.isEmpty) {
+      return Center(
+        child: Text(emptyMessage, style: Theme.of(context).textTheme.bodyMedium),
+      );
+    }
+
     return ListView.builder(
-      itemCount: state.recentFiles.length,
+      itemCount: documents.length,
       itemBuilder: (context, index) {
-        final filePath = state.recentFiles[index];
+        final doc = documents[index];
         return ListTile(
-          title: Text(filePath.split('/').last),
-          subtitle: Text(filePath),
-          onTap: () async {
+          title: Text(doc.fileName),
+          subtitle: Text(_subtitleOf(doc)),
+          leading: doc.isFavorite
+              ? const Icon(Icons.star_rounded, color: Colors.amber)
+              : const Icon(Icons.picture_as_pdf_outlined),
+          onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => PDFViewerPage(filePath: filePath),
+                builder: (_) => PDFViewerPage(documentId: doc.id),
               ),
             );
-            final notifier = ref.read(fileStoreProvider.notifier);
-            await notifier.addRecentFile(filePath);
           },
           trailing: IconButton(
             icon: const Icon(Icons.delete),
+            tooltip: 'ライブラリから削除',
             onPressed: () async {
               final result = await ConfirmationDialog.show(
                 context: context,
-                content: "${filePath.split('/').last}を削除しますか？",
-                confirmText: "はい",
-                cancelText: "いいえ",
+                title: 'ライブラリから削除',
+                content: '${doc.fileName} を削除しますか？\n読書位置とファイルの実体も削除されます。',
+                confirmText: "削除",
+                cancelText: "キャンセル",
               );
               if (result == true) {
-                final notifier = ref.read(fileStoreProvider.notifier);
-                notifier.removeRecentFile(filePath);
+                await ref.read(libraryStoreProvider.notifier).remove(doc.id);
               }
             },
           ),
@@ -148,27 +166,24 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFavoriteTab(FileStoreState state, WidgetRef ref) {
-    return ListView.builder(
-      itemCount: state.favoriteFiles.length,
-      itemBuilder: (context, index) {
-        final filePath = state.favoriteFiles[index];
-        return ListTile(
-          title: Text(filePath.split('/').last),
-          subtitle: Text(filePath),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              final notifier = ref.read(fileStoreProvider.notifier);
-              notifier.removeFavoriteFile(filePath);
-            },
-          ),
-        );
-      },
-    );
+  String _subtitleOf(LibraryDocument doc) {
+    if (doc.totalPages <= 0) return '未読';
+    if (doc.isRead) return '読了 · ${doc.totalPages}ページ';
+    return '${doc.lastPage} / ${doc.totalPages} ページ';
+  }
+}
+
+class _DirectoryTab extends ConsumerWidget {
+  final List<String> directories;
+  const _DirectoryTab({required this.directories});
+
+  Future<bool> _requestStoragePermission() async {
+    final status = await Permission.manageExternalStorage.request();
+    return status.isGranted;
   }
 
-  Widget _buildDirectoryTab(FileStoreState state, WidgetRef ref) {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       children: [
         Padding(
@@ -176,30 +191,115 @@ class LibraryScreen extends ConsumerWidget {
           child: ElevatedButton.icon(
             onPressed: () async {
               final isGranted = await _requestStoragePermission();
+              if (!context.mounted) return;
               if (!isGranted) {
-                ScaffoldMessenger.of(ref.context).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content: Text(
-                          "Storage permission is required to access folders.")),
+                    content:
+                        Text("Storage permission is required to access folders."),
+                  ),
                 );
                 return;
               }
               final directory = await getDirectoryPath();
               if (directory != null) {
-                final notifier = ref.read(fileStoreProvider.notifier);
-                notifier.addDirectory(directory);
+                await ref
+                    .read(libraryStoreProvider.notifier)
+                    .addDirectory(directory);
               }
             },
             icon: const Icon(Icons.add),
             label: const Text("Add Directory"),
           ),
         ),
-        ...state.directories.map((directory) {
+        ...directories.map((directory) {
           return ExpansionTile(
-              title: Text(directory.split('/').last),
-              children: _getDirectoryContent(directory, ref, ref.context));
-        })
+            title: Text(directory.split(Platform.pathSeparator).last),
+            subtitle: Text(directory),
+            trailing: IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: '登録を解除',
+              onPressed: () => ref
+                  .read(libraryStoreProvider.notifier)
+                  .removeDirectory(directory),
+            ),
+            // 展開されるまで中身を読まない（閉じたままのフォルダを走査しない）。
+            children: [_DirectoryContents(directoryPath: directory)],
+          );
+        }),
       ],
+    );
+  }
+}
+
+/// フォルダ配下の PDF を非同期に読み出して並べる。
+class _DirectoryContents extends ConsumerWidget {
+  final String directoryPath;
+  const _DirectoryContents({required this.directoryPath});
+
+  Future<List<File>> _listPdfs() async {
+    final dir = Directory(directoryPath);
+    if (!await dir.exists()) return const [];
+
+    final entries = await dir.list().toList();
+    final pdfs = entries
+        .whereType<File>()
+        .where((f) => f.path.toLowerCase().endsWith('.pdf'))
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+    return pdfs;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<List<File>>(
+      future: _listPdfs(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return ListTile(
+            leading: const Icon(Icons.error_outline),
+            title: Text('読み込めませんでした: ${snapshot.error}'),
+          );
+        }
+
+        final files = snapshot.data ?? const <File>[];
+        if (files.isEmpty) {
+          return const ListTile(title: Text('PDF がありません'));
+        }
+
+        return Column(
+          children: files.map((file) {
+            return ListTile(
+              title: Text(file.path.split(Platform.pathSeparator).last),
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              onTap: () async {
+                final doc = await ref
+                    .read(libraryStoreProvider.notifier)
+                    .importFile(file.path);
+                if (!context.mounted) return;
+                if (doc == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('ファイルを取り込めませんでした')),
+                  );
+                  return;
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PDFViewerPage(documentId: doc.id),
+                  ),
+                );
+              },
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }
