@@ -3,14 +3,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdfx/pdfx.dart';
+import 'package:pdfrx/pdfrx.dart';
 
+import '../foldable/folding_info.dart';
+import '../foldable/page_layout.dart' as layout;
 import '../main.dart';
 import '../store/library_store.dart';
 import '../store/settings_store.dart';
 
 /// ページ変更のたびに DB へ書かないよう、この間隔でまとめて保存する。
 const _progressSaveDebounce = Duration(seconds: 2);
+
+/// 見開きに切り替える最小の幅。これ未満は 1 ページ表示のままにする。
+///
+/// 全開の折りたたみ端末ではヒンジ情報が報告されないことがあるため、
+/// 見開きの判定は幅で行う。ヒンジは綴じ目の位置合わせにのみ使う。
+const _facingMinWidth = 720.0;
+
+/// 綴じ目に最低限確保する幅。実機のヒンジは 1px 程度しかない。
+const _minGutter = 28.0;
 
 class PDFViewerPage extends ConsumerStatefulWidget {
   /// ライブラリ内の永続 ID。ファイルパスは Store から引く。
@@ -23,7 +34,9 @@ class PDFViewerPage extends ConsumerStatefulWidget {
 }
 
 class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
-  PdfController? _pdfController;
+  final PdfViewerController _controller = PdfViewerController();
+
+  String? _storedPath;
   String? _errorMessage;
 
   bool _isOverlayVisible = false;
@@ -34,48 +47,22 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
   final FocusNode _keyboardFocusNode = FocusNode(debugLabel: 'pdf-viewer-keys');
   Timer? _saveDebounce;
 
+  /// 直近に組んだレイアウト。見開きの組にフィットさせるために使う。
+  layout.PageLayoutResult? _layout;
+
   @override
   void initState() {
     super.initState();
-    _open();
-  }
-
-  Future<void> _open() async {
-    final store = ref.read(libraryStoreProvider.notifier);
-    final doc = store.getById(widget.documentId);
-
+    final doc =
+        ref.read(libraryStoreProvider.notifier).getById(widget.documentId);
     if (doc == null) {
-      setState(() => _errorMessage = 'ライブラリにファイルが見つかりませんでした。');
+      _errorMessage = 'ライブラリにファイルが見つかりませんでした。';
       return;
     }
-
     // lastPage は 1 始まり。保存値が壊れていても 1 未満にはしない。
     _currentPage = doc.lastPage < 1 ? 1 : doc.lastPage;
     _pageFieldController.text = '$_currentPage';
-
-    try {
-      final controller = PdfController(
-        document: PdfDocument.openFile(doc.storedPath),
-        initialPage: _currentPage,
-      );
-      // openFile は Future を返すため、失敗はこちらで待って捕まえる必要がある。
-      // 同期の try/catch では届かない。
-      final document = await controller.document;
-      if (!mounted) {
-        controller.dispose();
-        return;
-      }
-      setState(() {
-        _pdfController = controller;
-        _totalPages = document.pagesCount;
-        if (_currentPage > _totalPages) _currentPage = _totalPages;
-        _pageFieldController.text = '$_currentPage';
-      });
-      await store.markOpened(widget.documentId);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _errorMessage = 'PDF を開けませんでした。ファイルが壊れている可能性があります。');
-    }
+    _storedPath = doc.storedPath;
   }
 
   @override
@@ -87,13 +74,11 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     );
     _keyboardFocusNode.dispose();
     _pageFieldController.dispose();
-    _pdfController?.dispose();
     super.dispose();
   }
 
   // -------------------------------------------------------------- 進捗保存
 
-  /// ページ変更のたびに呼ばれる。実際の書き込みはデバウンスする。
   void _scheduleSave() {
     _saveDebounce?.cancel();
     _saveDebounce = Timer(_progressSaveDebounce, _saveProgress);
@@ -135,12 +120,50 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     if (page == null || _totalPages <= 0) return;
     if (page < 1 || page > _totalPages) return;
 
-    _pdfController?.jumpToPage(page);
+    _showGroupOf(page);
     setState(() {
       _currentPage = page;
       _pageFieldController.text = '$page';
     });
     _scheduleSave();
+  }
+
+  /// [page] が属する組が画面に収まるように移動する。
+  ///
+  /// 見開きでは 1 ページ分にフィットさせると片側しか見えないため、
+  /// 組全体を囲む矩形へ移動する。
+  void _showGroupOf(int page) {
+    if (!_controller.isReady) return;
+    final bounds = _layout?.groupBoundsOf(page);
+    if (bounds == null) {
+      _controller.goToPage(pageNumber: page);
+      return;
+    }
+    // anchor: all が矩形全体にフィットさせる。既定の top だと
+    // 高さだけ合わせるため、見開きが画面に収まらない。
+    _controller.goToArea(rect: bounds, anchor: PdfPageAnchor.all);
+  }
+
+  // ------------------------------------------------------------ レイアウト
+
+  /// 表示領域と姿勢からページの並べ方を決める。
+  layout.SpreadMode _spreadModeFor(BoxConstraints constraints, Axis scroll) {
+    if (constraints.maxWidth >= _facingMinWidth) {
+      return layout.SpreadMode.facing;
+    }
+    return scroll == Axis.horizontal
+        ? layout.SpreadMode.singleHorizontal
+        : layout.SpreadMode.singleVertical;
+  }
+
+  /// 綴じ目の幅。ヒンジがあればその実寸を、無ければ既定値を使う。
+  double _gutterFor(FoldingInfo folding) {
+    final hinge = folding.hinge;
+    if (hinge == null || !folding.isSeparating) return _minGutter;
+    final thickness = folding.orientation == FoldOrientation.vertical
+        ? hinge.width
+        : hinge.height;
+    return thickness > _minGutter ? thickness : _minGutter;
   }
 
   // ---------------------------------------------------------------- 描画
@@ -173,12 +196,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
   Widget _buildBody() {
     final error = _errorMessage;
     if (error != null) return _buildError(error);
-
-    final controller = _pdfController;
-    if (controller == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    return _buildViewer(controller);
+    return _buildViewer(_storedPath!);
   }
 
   Widget _buildError(String message) {
@@ -206,29 +224,92 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     );
   }
 
-  Widget _buildViewer(PdfController controller) {
+  Widget _buildViewer(String path) {
     final settings = ref.watch(settingsStoreProvider);
     final settingsNotifier = ref.read(settingsStoreProvider.notifier);
     final library = ref.watch(libraryStoreProvider);
     final doc = library.documents[widget.documentId];
-    final isFavorite = doc?.isFavorite ?? false;
+    final folding = FoldingInfo.of(context);
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: Stack(children: [
-        GestureDetector(
-          onTap: _toggleOverlay,
-          child: PdfView(
-            controller: controller,
-            scrollDirection: settings.scrollDirection,
-            onPageChanged: (page) {
-              setState(() {
-                _currentPage = page;
-                _pageFieldController.text = '$page';
-              });
-              _scheduleSave();
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final mode =
+                  _spreadModeFor(constraints, settings.scrollDirection);
+              final gutter = _gutterFor(folding);
+
+              return PdfViewer.file(
+                path,
+                controller: _controller,
+                initialPageNumber: _currentPage,
+                params: PdfViewerParams(
+                  backgroundColor: Colors.black,
+                  // 既定では最小ズームが「1ページが収まる倍率」に固定され、
+                  // 見開き全体まで引けない。制限を外す。
+                  sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+                    useAlternativeFitScaleAsMinScale: false,
+                    minScale: 0.1,
+                  ),
+                  pageAnchor: PdfPageAnchor.all,
+                  // pdfrx が自前でジェスチャを処理するため、外側の
+                  // GestureDetector ではタップを拾えない。
+                  onGeneralTap: (context, controller, details) {
+                    if (details.type != PdfViewerGeneralTapType.tap) {
+                      return false;
+                    }
+                    _toggleOverlay();
+                    return true;
+                  },
+                  // テキスト選択が有効だとタップでオーバーレイを出す操作と
+                  // 競合する。検索・選択は別途 Issue で扱う。
+                  textSelectionParams:
+                      const PdfTextSelectionParams(enabled: false),
+                  layoutPages: (pages, params) {
+                    final result = layout.layoutPages(
+                      pages: pages
+                          .map((p) => layout.PageSize(p.width, p.height))
+                          .toList(),
+                      mode: mode,
+                      margin: params.margin,
+                      gutter: gutter,
+                    );
+                    _layout = result;
+                    return PdfPageLayout(
+                      pageLayouts: result.pageRects,
+                      documentSize: result.documentSize,
+                    );
+                  },
+                  onViewerReady: (document, controller) {
+                    setState(() {
+                      _totalPages = document.pages.length;
+                      if (_currentPage > _totalPages) {
+                        _currentPage = _totalPages;
+                      }
+                      _pageFieldController.text = '$_currentPage';
+                    });
+                    // レイアウトとビューサイズが確定してから組に合わせる。
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _showGroupOf(_currentPage);
+                    });
+                  },
+                  onPageChanged: (page) {
+                    if (page == null) return;
+                    setState(() {
+                      _currentPage = page;
+                      _pageFieldController.text = '$page';
+                    });
+                    _scheduleSave();
+                  },
+                  errorBannerBuilder:
+                      (context, error, stackTrace, documentRef) =>
+                          _buildError('PDF を開けませんでした。ファイルが壊れている可能性があります。'),
+                ),
+              );
             },
           ),
         ),
@@ -242,7 +323,11 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
         ),
         if (_isOverlayVisible) _buildTopBar(doc?.fileName ?? ''),
         if (_isOverlayVisible)
-          _buildBottomBar(settings.scrollDirection, settingsNotifier, isFavorite),
+          _buildBottomBar(
+            settings.scrollDirection,
+            settingsNotifier,
+            doc?.isFavorite ?? false,
+          ),
       ]),
     );
   }
@@ -330,7 +415,8 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.navigate_before_rounded, size: 36.0),
+                      icon:
+                          const Icon(Icons.navigate_before_rounded, size: 36.0),
                       onPressed: () => _goToPage(_currentPage - 1),
                     ),
                     Row(
