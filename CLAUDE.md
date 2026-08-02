@@ -55,6 +55,31 @@ Flutter 3.44 系で動作確認済み。Android は Gradle 8.12 / AGP 8.7.3 / Ko
 
 iOS / macOS は CocoaPods が必要（`brew install cocoapods`）。`pdfx` と `device_info_plus` が Swift Package Manager 未対応のため。iOS シミュレータでの起動を確認済み。
 
+## Foldable
+
+姿勢とヒンジは `lib/foldable/folding_info.dart` の `FoldingInfo` に集約する。`MediaQuery.displayFeatures` から導出しており、プラグインは使っていない。座標変換は `FoldingInfo.split()` に閉じ込めてあるので、各画面で自前計算しないこと。
+
+### fold AVD の実測値（重要）
+
+検証用 AVD は `7.6in Foldable`（内側 2076x2152 px / density 390 = **852x883 dp**）。`adb shell cmd device_state state <id>` で姿勢を切り替える。
+
+**Android の device_state と、アプリから見える posture が 1 段ずれる。** 実測で再現性を確認済み。
+
+| `device_state` | アプリから見える displayFeatures |
+|---|---|
+| 3 (OPENED) | **報告なし**（`[]`） |
+| 2 (HALF_OPENED) | hinge / `postureFlat` |
+| 1 (CLOSED) | hinge / `postureHalfOpened` |
+
+つまり **見開きの平置き状態を試すのは `device_state 2`**、卓上モードは `1`。
+
+ここから導かれる設計上の制約が 2 つある。
+
+- **全開時にヒンジ情報が来ない。** 見開きにするかどうかは**画面幅で判断**し、ヒンジは（あれば）綴じ目の位置合わせに使うだけにする。ヒンジの有無を条件にすると全開時に見開きにならない
+- **ヒンジの実寸は 0.41dp しかない**（`hw.sensor.hinge.areas = 1038-0-1-2152`）。そのまま綴立てに使っても見た目上の隙間にならないので、`split(area, minGutter: N)` で最小幅を指定する
+
+CLOSED でも画面サイズは 2076x2152 のままで、外側画面は再現されない。狭幅の検証は `adb shell wm size 1080x2400` の一時上書きで行い、`adb shell wm size reset` で戻す。
+
 ## 注意
 
 - 依存は 2024/12 時点。`flutter analyze` の警告は `lib/main.dart` に 5 件残っている（Issue #21）。
