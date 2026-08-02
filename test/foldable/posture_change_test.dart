@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -65,12 +64,13 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     tempRoot = await Directory.systemTemp.createTemp('flextapdf_posture');
+    // テストファイルは並列に走るため、DB を他ファイルと共有しないよう分離する。
+    await databaseFactory.setDatabasesPath(tempRoot.path);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async => tempRoot.path,
     );
-    await deleteDatabase(p.join(await getDatabasesPath(), 'pdf_info.db'));
   });
 
   tearDown(() {
