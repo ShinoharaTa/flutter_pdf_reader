@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +25,9 @@ const _tableName = 'pdf_documents';
 
 /// アプリ内ライブラリの実体を置くディレクトリ名。
 const _libraryDirName = 'library';
+
+/// 一覧に出すサムネイルの横幅（px）。グリッド表示で十分な解像度。
+const _thumbnailWidth = 320;
 
 /// ID を導出するときに読み込む先頭バイト数。
 ///
@@ -190,6 +197,9 @@ class LibraryStore extends Notifier<LibraryState> {
     final stored = p.join(dir.path, '$id.pdf');
     await source.copy(stored);
 
+    // サムネイルは失敗しても取り込み自体は成功させる。
+    unawaited(_generateThumbnail(id, stored));
+
     return _upsert(LibraryDocument(
       id: id,
       fileName: p.basename(sourcePath),
@@ -213,6 +223,51 @@ class LibraryStore extends Notifier<LibraryState> {
 
     return sha1.convert([...sample, ...'$length'.codeUnits]).toString();
   }
+
+  /// 1 ページ目を PNG に焼いて `<id>.thumb.png` として保存する。
+  ///
+  /// 取り込み時に一度だけ行う。生成に失敗しても一覧はアイコンに
+  /// フォールバックするので、例外は握り潰してよい。
+  Future<void> _generateThumbnail(String id, String pdfPath) async {
+    try {
+      final dir = await _ensureLibraryDir();
+      final out = File(p.join(dir.path, '$id.thumb.png'));
+      if (await out.exists()) return;
+
+      final document = await PdfDocument.openFile(pdfPath);
+      try {
+        final page = document.pages.first;
+        final scale = _thumbnailWidth / page.width;
+        final rendered = await page.render(
+          fullWidth: page.width * scale,
+          fullHeight: page.height * scale,
+        );
+        if (rendered == null) return;
+
+        final image = await rendered.createImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        image.dispose();
+        if (bytes == null) return;
+
+        await out.writeAsBytes(bytes.buffer.asUint8List());
+      } finally {
+        await document.dispose();
+      }
+
+      // ファイルが増えただけなので state の中身は変わらないが、
+      // 一覧に反映させるために通知する。
+      final doc = state.documents[id];
+      if (doc != null) {
+        state = state.copyWith(documents: {...state.documents, id: doc});
+      }
+    } catch (e) {
+      debugPrint('サムネイルを生成できませんでした: $e');
+    }
+  }
+
+  /// サムネイルのパス。存在しない場合もあるので、表示側で確認する。
+  String thumbnailPathOf(LibraryDocument doc) =>
+      '${p.withoutExtension(doc.storedPath)}.thumb.png';
 
   // -------------------------------------------------------------- 更新系
 
@@ -253,6 +308,10 @@ class LibraryStore extends Notifier<LibraryState> {
     final file = File(doc.storedPath);
     if (await file.exists()) {
       await file.delete();
+    }
+    final thumb = File(thumbnailPathOf(doc));
+    if (await thumb.exists()) {
+      await thumb.delete();
     }
     await _database?.delete(_tableName, where: 'id = ?', whereArgs: [id]);
 
