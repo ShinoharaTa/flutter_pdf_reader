@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _themeModeKey = 'themeMode';
 const _scrollDirectionKey = 'scrollDirection';
+const _bindingEdgeKey = 'bindingEdge';
 
 /// v1 のキー。bool で「ダークかどうか」を持っていた。
 const _legacyThemeKey = 'isDarkTheme';
@@ -12,19 +13,35 @@ const _legacyThemeKey = 'isDarkTheme';
 /// 「横スクロールかどうか」を保存していた（意味が逆）。
 const _legacyScrollKey = 'isScrollVertical';
 
+/// 綴じ方向。ページ送りの向きを決める。
+enum BindingEdge {
+  /// 左綴じ。洋書・技術書。次へで右に進む。
+  left,
+
+  /// 右綴じ。漫画・和書。次へで左に進む。
+  right,
+}
+
 class SettingsState {
   final ThemeMode themeMode;
   final Axis scrollDirection;
+  final BindingEdge bindingEdge;
 
   const SettingsState({
     this.themeMode = ThemeMode.system,
     this.scrollDirection = Axis.horizontal,
+    this.bindingEdge = BindingEdge.left,
   });
 
-  SettingsState copyWith({ThemeMode? themeMode, Axis? scrollDirection}) {
+  SettingsState copyWith({
+    ThemeMode? themeMode,
+    Axis? scrollDirection,
+    BindingEdge? bindingEdge,
+  }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       scrollDirection: scrollDirection ?? this.scrollDirection,
+      bindingEdge: bindingEdge ?? this.bindingEdge,
     );
   }
 }
@@ -42,6 +59,7 @@ class SettingsStore extends StateNotifier<SettingsState> {
     state = SettingsState(
       themeMode: _readThemeMode(prefs),
       scrollDirection: _readScrollDirection(prefs),
+      bindingEdge: _readBindingEdge(prefs),
     );
   }
 
@@ -69,6 +87,19 @@ class SettingsStore extends StateNotifier<SettingsState> {
     // 旧キーは true が横スクロールを意味していた。
     if (legacy != null) return legacy ? Axis.horizontal : Axis.vertical;
     return Axis.horizontal;
+  }
+
+  BindingEdge _readBindingEdge(SharedPreferences prefs) {
+    final stored = prefs.getString(_bindingEdgeKey);
+    return stored == BindingEdge.right.name
+        ? BindingEdge.right
+        : BindingEdge.left;
+  }
+
+  Future<void> setBindingEdge(BindingEdge edge) async {
+    state = state.copyWith(bindingEdge: edge);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_bindingEdgeKey, edge.name);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
