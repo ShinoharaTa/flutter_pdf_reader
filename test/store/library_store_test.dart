@@ -28,6 +28,8 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     tempRoot = await Directory.systemTemp.createTemp('flextapdf_test');
+    // テストファイルは並列に走るため、DB を他ファイルと共有しないよう分離する。
+    await databaseFactory.setDatabasesPath(tempRoot.path);
 
     // path_provider は実機のチャネルを叩くので、テスト用の一時領域に差し替える。
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -36,8 +38,8 @@ void main() {
       (call) async => tempRoot.path,
     );
 
-    // 各テストで DB を空にする（getDatabasesPath は ffi の既定を使う）。
-    await deleteDatabase(p.join(await getDatabasesPath(), 'pdf_info.db'));
+    // 各テストで DB を空にする。
+    await deleteDatabase(p.join(tempRoot.path, 'pdf_info.db'));
   });
 
   tearDown(() async {

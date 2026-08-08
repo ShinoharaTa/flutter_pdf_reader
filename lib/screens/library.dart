@@ -69,10 +69,12 @@ class LibraryScreen extends ConsumerWidget {
                 : TabBarView(
                     children: [
                       _DocumentList(
+                        storageKey: const PageStorageKey('library-recent'),
                         documents: library.recent,
                         emptyMessage: '右下のボタンから PDF を追加してください',
                       ),
                       _DocumentList(
+                        storageKey: const PageStorageKey('library-favorite'),
                         documents: library.favorites,
                         emptyMessage: 'ビューアの星ボタンでお気に入りに追加できます',
                       ),
@@ -116,7 +118,14 @@ class _DocumentList extends ConsumerWidget {
   final List<LibraryDocument> documents;
   final String emptyMessage;
 
-  const _DocumentList({required this.documents, required this.emptyMessage});
+  /// 折りたたみ・展開でウィジェットが作り直されてもスクロール位置を保つ。
+  final PageStorageKey<String> storageKey;
+
+  const _DocumentList({
+    required this.storageKey,
+    required this.documents,
+    required this.emptyMessage,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -127,6 +136,7 @@ class _DocumentList extends ConsumerWidget {
     }
 
     return ListView.builder(
+      key: storageKey,
       itemCount: documents.length,
       itemBuilder: (context, index) {
         final doc = documents[index];
@@ -179,6 +189,7 @@ class _DirectoryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
+      key: const PageStorageKey('library-directory'),
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
