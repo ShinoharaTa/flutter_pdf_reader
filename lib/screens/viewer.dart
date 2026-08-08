@@ -23,6 +23,17 @@ const _facingMinWidth = 720.0;
 /// 綴じ目に最低限確保する幅。実機のヒンジは 1px 程度しかない。
 const _minGutter = 28.0;
 
+/// ピンチで拡大できる上限。
+const _maxZoom = 4.0;
+
+/// 表示サイズより大きく描画しておく倍率。
+///
+/// PdfPageView はウィジェットの箱サイズ x devicePixelRatio で描画するため、
+/// 等倍のまま拡大すると引き伸ばしになってぼやける。あらかじめ大きく描いて
+/// 縮小表示しておくと、拡大しても解像度が残る。
+/// 実際のピクセル数は PdfPageView 側の maximumDpi で頭打ちになる。
+const _superSample = 2.5;
+
 class PDFViewerPage extends ConsumerStatefulWidget {
   /// ライブラリ内の永続 ID。ファイルパスは Store から引く。
   final String documentId;
@@ -51,6 +62,9 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
 
   /// _pageController が指している組の index。
   int _groupIndex = 0;
+
+  /// いま拡大中か。拡大中はページ送りを止めてパンを優先する。
+  bool _isZoomed = false;
 
   final TextEditingController _pageFieldController = TextEditingController();
   final FocusNode _keyboardFocusNode = FocusNode(debugLabel: 'pdf-viewer-keys');
@@ -150,8 +164,15 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
       _groupIndex = index;
       _currentPage = _groups[index].first;
       _pageFieldController.text = '$_currentPage';
+      // ページを送ったら倍率は戻す。拡大したまま送ると迷子になる。
+      _isZoomed = false;
     });
     _scheduleSave();
+  }
+
+  void _onZoomChanged(bool zoomed) {
+    if (_isZoomed == zoomed) return;
+    setState(() => _isZoomed = zoomed);
   }
 
   // ---------------------------------------------------------------- 操作
@@ -356,17 +377,21 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
       scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
       // 右綴じでは次へで左に進む。縦スクロールには綴じ方向がない。
       reverse: !vertical && settings.bindingEdge == BindingEdge.right,
+      // 拡大中はページ送りを止め、パンを優先する。
+      physics: _isZoomed
+          ? const NeverScrollableScrollPhysics()
+          : const PageScrollPhysics(),
       itemCount: _groups.length,
       onPageChanged: _onGroupChanged,
       itemBuilder: (context, index) {
-        return GestureDetector(
+        return _SpreadItem(
+          key: ValueKey('spread-$index-${settings.bindingEdge.name}'),
+          document: document,
+          pages: _groups[index],
+          gutter: gutter,
+          bindingEdge: settings.bindingEdge,
           onTap: _toggleOverlay,
-          child: _SpreadItem(
-            document: document,
-            pages: _groups[index],
-            gutter: gutter,
-            bindingEdge: settings.bindingEdge,
-          ),
+          onZoomChanged: _onZoomChanged,
         );
       },
     );
@@ -523,31 +548,96 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
   }
 }
 
-/// 1 組（単ページまたは見開き）を描画する。
-class _SpreadItem extends StatelessWidget {
+/// 1 組（単ページまたは見開き）を描画し、ピンチ拡大を受け持つ。
+class _SpreadItem extends StatefulWidget {
   final PdfDocument document;
 
   /// 1 始まりのページ番号。1 つなら単ページ、2 つなら見開き。
   final List<int> pages;
   final double gutter;
   final BindingEdge bindingEdge;
+  final VoidCallback onTap;
+  final ValueChanged<bool> onZoomChanged;
 
   const _SpreadItem({
+    super.key,
     required this.document,
     required this.pages,
     required this.gutter,
     required this.bindingEdge,
+    required this.onTap,
+    required this.onZoomChanged,
   });
 
   @override
+  State<_SpreadItem> createState() => _SpreadItemState();
+}
+
+class _SpreadItemState extends State<_SpreadItem> {
+  final TransformationController _transform = TransformationController();
+  TapDownDetails? _lastTapDown;
+
+  @override
+  void initState() {
+    super.initState();
+    _transform.addListener(_notifyZoom);
+  }
+
+  @override
+  void dispose() {
+    _transform.removeListener(_notifyZoom);
+    _transform.dispose();
+    super.dispose();
+  }
+
+  void _notifyZoom() {
+    // 誤差で 1.0 をわずかに超えることがあるので余裕を持たせる。
+    widget.onZoomChanged(_transform.value.getMaxScaleOnAxis() > 1.01);
+  }
+
+  /// ダブルタップで拡大・等倍をトグルする。
+  void _toggleZoom() {
+    if (_transform.value.getMaxScaleOnAxis() > 1.01) {
+      _transform.value = Matrix4.identity();
+      return;
+    }
+    final position = _lastTapDown?.localPosition;
+    if (position == null) return;
+    const scale = 2.5;
+    _transform.value = Matrix4.identity()
+      ..translateByDouble(
+        -position.dx * (scale - 1),
+        -position.dy * (scale - 1),
+        0,
+        1,
+      )
+      ..scaleByDouble(scale, scale, scale, 1);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (pages.length == 1) {
-      return _page(pages.first);
+    return GestureDetector(
+      onTap: widget.onTap,
+      onDoubleTapDown: (details) => _lastTapDown = details,
+      onDoubleTap: _toggleZoom,
+      child: InteractiveViewer(
+        transformationController: _transform,
+        minScale: 1.0,
+        maxScale: _maxZoom,
+        child: _buildSpread(),
+      ),
+    );
+  }
+
+  Widget _buildSpread() {
+    if (widget.pages.length == 1) {
+      return _page(widget.pages.first);
     }
 
     // 右綴じでは若い番号を右に置く。
-    final ordered =
-        bindingEdge == BindingEdge.right ? pages.reversed.toList() : pages;
+    final ordered = widget.bindingEdge == BindingEdge.right
+        ? widget.pages.reversed.toList()
+        : widget.pages;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -559,7 +649,7 @@ class _SpreadItem extends StatelessWidget {
           ),
         ),
         // 綴じ目。折りたたみ端末ではヒンジ幅に合わせる。
-        SizedBox(width: gutter),
+        SizedBox(width: widget.gutter),
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
@@ -570,10 +660,27 @@ class _SpreadItem extends StatelessWidget {
     );
   }
 
-  Widget _page(int pageNumber) => PdfPageView(
-        document: document,
-        pageNumber: pageNumber,
-        alignment: Alignment.center,
-        backgroundColor: Colors.black,
-      );
+  /// 表示サイズより大きい箱に描かせてから縮小して置く。
+  ///
+  /// PdfPageView は箱サイズ x devicePixelRatio で描画するため、そのまま
+  /// 拡大すると引き伸ばしになる。先に高い解像度で描いておく。
+  Widget _page(int pageNumber) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: constraints.maxWidth * _superSample,
+            height: constraints.maxHeight * _superSample,
+            child: PdfPageView(
+              document: widget.document,
+              pageNumber: pageNumber,
+              alignment: Alignment.center,
+              backgroundColor: Colors.black,
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
