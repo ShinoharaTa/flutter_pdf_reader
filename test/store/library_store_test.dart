@@ -208,16 +208,41 @@ void main() {
     });
   });
 
-  group('LibraryStore のディレクトリ登録', () {
-    test('追加と解除ができ、重複登録されない', () async {
+  group('LibraryStore.importFiles', () {
+    test('複数まとめて取り込める', () async {
       final (container, store) = await boot();
 
-      await store.addDirectory('/books');
-      await store.addDirectory('/books');
-      expect(container.read(libraryStoreProvider).directories, ['/books']);
+      final imported = await store.importFiles([
+        _makeFile(tempRoot, 'k1.pdf', 'k1').path,
+        _makeFile(tempRoot, 'k2.pdf', 'k2').path,
+        _makeFile(tempRoot, 'k3.pdf', 'k3').path,
+      ]);
 
-      await store.removeDirectory('/books');
-      expect(container.read(libraryStoreProvider).directories, isEmpty);
+      expect(imported, hasLength(3));
+      expect(container.read(libraryStoreProvider).documents, hasLength(3));
+    });
+
+    test('一部が失敗しても残りは取り込む', () async {
+      final (container, store) = await boot();
+
+      final imported = await store.importFiles([
+        _makeFile(tempRoot, 'ok.pdf', 'ok').path,
+        p.join(tempRoot.path, 'missing.pdf'),
+      ]);
+
+      expect(imported, hasLength(1));
+      expect(container.read(libraryStoreProvider).documents, hasLength(1));
+    });
+
+    test('同じ内容が混ざっていても重複しない', () async {
+      final (container, store) = await boot();
+      final same = _makeFile(tempRoot, 'same.pdf', 'same content');
+      final copyDir = Directory(p.join(tempRoot.path, 'dup'))..createSync();
+      final dup = _makeFile(copyDir, 'same.pdf', 'same content');
+
+      await store.importFiles([same.path, dup.path]);
+
+      expect(container.read(libraryStoreProvider).documents, hasLength(1));
     });
   });
 }

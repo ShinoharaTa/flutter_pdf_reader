@@ -13,25 +13,43 @@ import './viewer.dart';
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
-  /// ファイルを選び、アプリ内ライブラリへ取り込んでからビューアを開く。
-  Future<void> _pickAndOpen(BuildContext context, WidgetRef ref) async {
+  /// PDF を選んでライブラリへ取り込む。
+  ///
+  /// 複数選択に対応している。フォルダ単位で読み込みたい場合は、選択画面で
+  /// まとめて選ぶ。フォルダのパスを保存する方式は、SAF の許可が
+  /// dart:io の権限にならないため機能しなかった。
+  Future<void> _pickAndImport(BuildContext context, WidgetRef ref) async {
     const fileTypeGroup = XTypeGroup(label: 'PDF files', extensions: ['pdf']);
-    final file = await openFile(acceptedTypeGroups: [fileTypeGroup]);
-    if (file == null) return;
+    final files = await openFiles(acceptedTypeGroups: [fileTypeGroup]);
+    if (files.isEmpty) return;
 
-    final doc = await ref.read(libraryStoreProvider.notifier).importFile(file.path);
+    final store = ref.read(libraryStoreProvider.notifier);
+    final imported = await store.importFiles(files.map((f) => f.path).toList());
     if (!context.mounted) return;
 
-    if (doc == null) {
+    if (imported.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('ファイルを取り込めませんでした')),
       );
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => PDFViewerPage(documentId: doc.id)),
-    );
+
+    final failed = files.length - imported.length;
+    if (failed > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$failed 件は取り込めませんでした')),
+      );
+    }
+
+    // 1 件だけ選んだときはそのまま開く。まとめて取り込んだときは一覧に留まる。
+    if (imported.length == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PDFViewerPage(documentId: imported.first.id),
+        ),
+      );
+    }
   }
 
   @override
@@ -39,7 +57,7 @@ class LibraryScreen extends ConsumerWidget {
     final library = ref.watch(libraryStoreProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Library"),
@@ -58,7 +76,6 @@ class LibraryScreen extends ConsumerWidget {
             tabs: [
               Tab(text: "Recent"),
               Tab(text: "Favorite"),
-              Tab(text: "Directory"),
             ],
           ),
         ),
@@ -71,19 +88,18 @@ class LibraryScreen extends ConsumerWidget {
                       _DocumentList(
                         storageKey: const PageStorageKey('library-recent'),
                         documents: library.recent,
-                        emptyMessage: '右下のボタンから PDF を追加してください',
+                        emptyMessage: '右下のボタンから PDF を追加してください\n複数まとめて選べます',
                       ),
                       _DocumentList(
                         storageKey: const PageStorageKey('library-favorite'),
                         documents: library.favorites,
                         emptyMessage: 'ビューアの星ボタンでお気に入りに追加できます',
                       ),
-                      _DirectoryTab(directories: library.directories),
                     ],
                   ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () => _pickAndOpen(context, ref),
-          tooltip: "Open PDF",
+          onPressed: () => _pickAndImport(context, ref),
+          tooltip: "PDF を追加（複数選択できます）",
           child: const Icon(Icons.folder_open),
         ),
       ),
@@ -330,121 +346,3 @@ class _Thumbnail extends ConsumerWidget {
   }
 }
 
-class _DirectoryTab extends ConsumerWidget {
-  final List<String> directories;
-  const _DirectoryTab({required this.directories});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      key: const PageStorageKey('library-directory'),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ElevatedButton.icon(
-            // フォルダ選択は SAF 経由なので、ストレージ権限を要求しない。
-            // MANAGE_EXTERNAL_STORAGE は Play の審査対象で PDF リーダーは
-            // 通らない可能性が高く、READ/WRITE_EXTERNAL_STORAGE も
-            // Android 13 以降は事実上機能しない。
-            onPressed: () async {
-              final directory = await getDirectoryPath();
-              if (directory == null) return;
-              await ref
-                  .read(libraryStoreProvider.notifier)
-                  .addDirectory(directory);
-            },
-            icon: const Icon(Icons.add),
-            label: const Text("Add Directory"),
-          ),
-        ),
-        ...directories.map((directory) {
-          return ExpansionTile(
-            title: Text(directory.split(Platform.pathSeparator).last),
-            subtitle: Text(directory),
-            trailing: IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: '登録を解除',
-              onPressed: () => ref
-                  .read(libraryStoreProvider.notifier)
-                  .removeDirectory(directory),
-            ),
-            // 展開されるまで中身を読まない（閉じたままのフォルダを走査しない）。
-            children: [_DirectoryContents(directoryPath: directory)],
-          );
-        }),
-      ],
-    );
-  }
-}
-
-/// フォルダ配下の PDF を非同期に読み出して並べる。
-class _DirectoryContents extends ConsumerWidget {
-  final String directoryPath;
-  const _DirectoryContents({required this.directoryPath});
-
-  Future<List<File>> _listPdfs() async {
-    final dir = Directory(directoryPath);
-    if (!await dir.exists()) return const [];
-
-    final entries = await dir.list().toList();
-    final pdfs = entries
-        .whereType<File>()
-        .where((f) => f.path.toLowerCase().endsWith('.pdf'))
-        .toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
-    return pdfs;
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<List<File>>(
-      future: _listPdfs(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.hasError) {
-          return ListTile(
-            leading: const Icon(Icons.error_outline),
-            title: Text('読み込めませんでした: ${snapshot.error}'),
-          );
-        }
-
-        final files = snapshot.data ?? const <File>[];
-        if (files.isEmpty) {
-          return const ListTile(title: Text('PDF がありません'));
-        }
-
-        return Column(
-          children: files.map((file) {
-            return ListTile(
-              title: Text(file.path.split(Platform.pathSeparator).last),
-              leading: const Icon(Icons.picture_as_pdf_outlined),
-              onTap: () async {
-                final doc = await ref
-                    .read(libraryStoreProvider.notifier)
-                    .importFile(file.path);
-                if (!context.mounted) return;
-                if (doc == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ファイルを取り込めませんでした')),
-                  );
-                  return;
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PDFViewerPage(documentId: doc.id),
-                  ),
-                );
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-}
