@@ -14,11 +14,8 @@ import '../store/settings_store.dart';
 /// ページ変更のたびに DB へ書かないよう、この間隔でまとめて保存する。
 const _progressSaveDebounce = Duration(seconds: 2);
 
-/// 見開きに切り替える最小の幅。これ未満は 1 ページ表示のままにする。
-///
-/// 全開の折りたたみ端末ではヒンジ情報が報告されないことがあるため、
-/// 見開きの判定は幅で行う。ヒンジは綴じ目の位置合わせにのみ使う。
-const _facingMinWidth = 720.0;
+/// タップでページを送る左右の帯の幅（画面比）。中央はオーバーレイの開閉。
+const _tapZoneFraction = 1 / 3;
 
 /// 綴じ目に最低限確保する幅。実機のヒンジは 1px 程度しかない。
 const _minGutter = 28.0;
@@ -175,6 +172,26 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
     setState(() => _isZoomed = zoomed);
   }
 
+  /// タップ位置に応じてページを送る。中央はオーバーレイの開閉。
+  ///
+  /// 右綴じでは進む向きが逆になるため、[_TapZone.forward] / [_TapZone.backward]
+  /// への変換は _SpreadItem 側で綴じ方向を見て行う。
+  void _handleTapZone(_TapZone zone) {
+    // オーバーレイが出ているときは、まず閉じる操作を優先する。
+    if (_isOverlayVisible) {
+      _toggleOverlay();
+      return;
+    }
+    switch (zone) {
+      case _TapZone.forward:
+        _nextGroup();
+      case _TapZone.backward:
+        _previousGroup();
+      case _TapZone.center:
+        _toggleOverlay();
+    }
+  }
+
   // ---------------------------------------------------------------- 操作
 
   void _toggleOverlay() {
@@ -216,13 +233,19 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
 
   // ------------------------------------------------------------ レイアウト
 
-  layout.SpreadMode _spreadModeFor(BoxConstraints constraints, Axis scroll) {
-    if (constraints.maxWidth >= _facingMinWidth) {
-      return layout.SpreadMode.facing;
-    }
-    return scroll == Axis.horizontal
-        ? layout.SpreadMode.singleHorizontal
-        : layout.SpreadMode.singleVertical;
+  /// 表示領域の形と手動設定から並べ方を決める。
+  ///
+  /// 幅だけで判定すると iPad の縦持ち（幅 834dp）でも見開きになってしまう。
+  /// 判定は page_layout 側の純粋関数に寄せてテストできるようにしている。
+  layout.SpreadMode _spreadModeFor(
+    BoxConstraints constraints,
+    SettingsState settings,
+  ) {
+    return layout.resolveSpreadMode(
+      viewport: Size(constraints.maxWidth, constraints.maxHeight),
+      preference: settings.spreadPreference,
+      scrollDirection: settings.scrollDirection,
+    );
   }
 
   /// 綴じ目の幅。ヒンジがあればその実寸を、無ければ既定値を使う。
@@ -321,7 +344,7 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final mode = _spreadModeFor(constraints, settings.scrollDirection);
+            final mode = _spreadModeFor(constraints, settings);
             _rebuildGroups(mode);
 
             if (_groups.isEmpty || _pageController == null) {
@@ -390,7 +413,8 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
           pages: _groups[index],
           gutter: gutter,
           bindingEdge: settings.bindingEdge,
-          onTap: _toggleOverlay,
+          vertical: vertical,
+          onTapZone: _handleTapZone,
           onZoomChanged: _onZoomChanged,
         );
       },
@@ -459,6 +483,29 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
                         size: 32.0,
                       ),
                       onPressed: settingsNotifier.toggleScrollDirection,
+                    ),
+                    IconButton(
+                      tooltip: switch (settings.spreadPreference) {
+                        layout.SpreadPreference.auto => '見開き: 自動',
+                        layout.SpreadPreference.single => '見開き: 常に単ページ',
+                        layout.SpreadPreference.facing => '見開き: 常に見開き',
+                      },
+                      icon: Icon(
+                        switch (settings.spreadPreference) {
+                          layout.SpreadPreference.auto => Icons.auto_awesome,
+                          layout.SpreadPreference.single =>
+                            Icons.crop_portrait,
+                          layout.SpreadPreference.facing => Icons.import_contacts,
+                        },
+                        size: 32.0,
+                      ),
+                      onPressed: () {
+                        const order = layout.SpreadPreference.values;
+                        final next = order[
+                            (order.indexOf(settings.spreadPreference) + 1) %
+                                order.length];
+                        settingsNotifier.setSpreadPreference(next);
+                      },
                     ),
                     IconButton(
                       tooltip: settings.bindingEdge == BindingEdge.left
@@ -548,7 +595,10 @@ class _PDFViewerPageState extends ConsumerState<PDFViewerPage> {
   }
 }
 
-/// 1 組（単ページまたは見開き）を描画し、ピンチ拡大を受け持つ。
+/// タップされた位置の意味。綴じ方向を解決した後の値。
+enum _TapZone { backward, center, forward }
+
+/// 1 組（単ページまたは見開き）を描画し、ピンチ拡大とタップ送りを受け持つ。
 class _SpreadItem extends StatefulWidget {
   final PdfDocument document;
 
@@ -556,7 +606,10 @@ class _SpreadItem extends StatefulWidget {
   final List<int> pages;
   final double gutter;
   final BindingEdge bindingEdge;
-  final VoidCallback onTap;
+
+  /// 縦送りのときは上下でタップゾーンを分ける。
+  final bool vertical;
+  final ValueChanged<_TapZone> onTapZone;
   final ValueChanged<bool> onZoomChanged;
 
   const _SpreadItem({
@@ -565,7 +618,8 @@ class _SpreadItem extends StatefulWidget {
     required this.pages,
     required this.gutter,
     required this.bindingEdge,
-    required this.onTap,
+    required this.vertical,
+    required this.onTapZone,
     required this.onZoomChanged,
   });
 
@@ -614,18 +668,51 @@ class _SpreadItemState extends State<_SpreadItem> {
       ..scaleByDouble(scale, scale, scale, 1);
   }
 
+  /// タップ位置から意味を決める。
+  ///
+  /// 拡大中はパンを優先するため、常に中央（オーバーレイ）扱いにして
+  /// 誤ってページが飛ばないようにする。
+  _TapZone _zoneFor(Offset position, Size size) {
+    if (_transform.value.getMaxScaleOnAxis() > 1.01) return _TapZone.center;
+
+    final extent = widget.vertical ? size.height : size.width;
+    final along = widget.vertical ? position.dy : position.dx;
+    final edge = extent * _tapZoneFraction;
+
+    if (along < edge) {
+      // 縦送りでは上が前。横送りでは綴じ方向で反転する。
+      if (widget.vertical) return _TapZone.backward;
+      return widget.bindingEdge == BindingEdge.right
+          ? _TapZone.forward
+          : _TapZone.backward;
+    }
+    if (along > extent - edge) {
+      if (widget.vertical) return _TapZone.forward;
+      return widget.bindingEdge == BindingEdge.right
+          ? _TapZone.backward
+          : _TapZone.forward;
+    }
+    return _TapZone.center;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      onDoubleTapDown: (details) => _lastTapDown = details,
-      onDoubleTap: _toggleZoom,
-      child: InteractiveViewer(
-        transformationController: _transform,
-        minScale: 1.0,
-        maxScale: _maxZoom,
-        child: _buildSpread(),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return GestureDetector(
+          onTapUp: (details) => widget.onTapZone(
+            _zoneFor(details.localPosition, constraints.biggest),
+          ),
+          onDoubleTapDown: (details) => _lastTapDown = details,
+          onDoubleTap: _toggleZoom,
+          child: InteractiveViewer(
+            transformationController: _transform,
+            minScale: 1.0,
+            maxScale: _maxZoom,
+            child: _buildSpread(),
+          ),
+        );
+      },
     );
   }
 
