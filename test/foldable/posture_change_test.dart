@@ -114,17 +114,13 @@ void main() {
     }
   });
 
-  testWidgets('リストにスクロール位置保持用のキーが付いている', (tester) async {
+  testWidgets('タブは Recent と Favorite の2つ', (tester) async {
     await tester.pumpWidget(_app(size: _unfolded));
     await _settleLoad(tester);
 
-    // Recent は空だと Center になるため、常にリストがある Directory で確認する。
-    await tester.tap(find.text('Directory'));
-    await _settleTab(tester);
-
-    expect(
-      find.byKey(const PageStorageKey('library-directory')),
-      findsOneWidget,
-    );
+    expect(find.text('Recent'), findsOneWidget);
+    expect(find.text('Favorite'), findsOneWidget);
+    // フォルダ登録は SAF の制約で機能しなかったため廃止した (#45)
+    expect(find.text('Directory'), findsNothing);
   });
 }

@@ -37,7 +37,6 @@ const _hashSampleBytes = 1024 * 1024;
 
 class LibraryState {
   final Map<String, LibraryDocument> documents;
-  final List<String> directories;
 
   /// 初期ロードが終わるまで true。
   final bool isLoading;
@@ -48,7 +47,6 @@ class LibraryState {
 
   const LibraryState({
     this.documents = const {},
-    this.directories = const [],
     this.isLoading = true,
     this.errorMessage,
   });
@@ -66,14 +64,12 @@ class LibraryState {
 
   LibraryState copyWith({
     Map<String, LibraryDocument>? documents,
-    List<String>? directories,
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
   }) {
     return LibraryState(
       documents: documents ?? this.documents,
-      directories: directories ?? this.directories,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -111,15 +107,18 @@ class LibraryStore extends Notifier<LibraryState> {
       }
     }
 
-    final prefs = await SharedPreferences.getInstance();
     final rows = await _database!.query(_tableName);
+
+    // v1 のフォルダ登録は SAF の許可が POSIX 権限にならず機能しなかったため
+    // 廃止した。残っているキーを掃除する。
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('directories');
 
     state = LibraryState(
       documents: {
         for (final row in rows)
           row['id'] as String: LibraryDocument.fromMap(row),
       },
-      directories: prefs.getStringList('directories') ?? const [],
       isLoading: false,
     );
   }
@@ -333,22 +332,16 @@ class LibraryStore extends Notifier<LibraryState> {
 
   LibraryDocument? getById(String id) => state.documents[id];
 
-  // ------------------------------------------------------- ディレクトリ
-
-  Future<void> addDirectory(String directoryPath) async {
-    if (state.directories.contains(directoryPath)) return;
-    final updated = [...state.directories, directoryPath];
-    state = state.copyWith(directories: updated);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('directories', updated);
-  }
-
-  Future<void> removeDirectory(String directoryPath) async {
-    final updated =
-        state.directories.where((d) => d != directoryPath).toList();
-    state = state.copyWith(directories: updated);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('directories', updated);
+  /// 複数の PDF をまとめて取り込む。
+  ///
+  /// 取り込めたものだけを返す。1 件失敗しても残りは続行する。
+  Future<List<LibraryDocument>> importFiles(List<String> sourcePaths) async {
+    final imported = <LibraryDocument>[];
+    for (final path in sourcePaths) {
+      final doc = await importFile(path);
+      if (doc != null) imported.add(doc);
+    }
+    return imported;
   }
 }
 

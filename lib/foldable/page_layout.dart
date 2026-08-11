@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+
 /// ページの並べ方。
 enum SpreadMode {
   /// 1ページずつ縦に送る。
@@ -54,4 +56,57 @@ List<List<int>> groupPages({
     }
   }
   return groups;
+}
+
+/// 見開きにするかどうかの手動設定。
+enum SpreadPreference {
+  /// 画面の形から自動で決める。
+  auto,
+
+  /// 常に単ページ。
+  single,
+
+  /// 常に見開き。
+  facing,
+}
+
+/// 見開きが成立する最小の短辺。
+///
+/// これを下回ると 1 ページあたりが小さくなりすぎる。iPhone の横向き
+/// (393dp) を弾くための下限。
+const facingMinShortSide = 480.0;
+
+/// 見開きが成立する最小のアスペクト比（幅 / 高さ）。
+///
+/// 見開きは A4 を 2 枚並べた横長の形になるため、画面がおおむね正方形以上に
+/// 横長でないと単ページより小さくなる。iPad の縦持ち (0.70) を弾くための下限。
+const facingMinAspect = 0.9;
+
+/// 表示領域の形から見開きにすべきか判定する。
+///
+/// 幅だけで判定すると iPad の縦持ち（幅 834dp）でも見開きになってしまう。
+/// 短辺とアスペクト比の両方を見る。
+bool shouldUseFacing(Size viewport) {
+  if (viewport.width <= 0 || viewport.height <= 0) return false;
+  final shortSide =
+      viewport.width < viewport.height ? viewport.width : viewport.height;
+  if (shortSide < facingMinShortSide) return false;
+  return viewport.width / viewport.height >= facingMinAspect;
+}
+
+/// 手動設定を加味して並べ方を決める。
+SpreadMode resolveSpreadMode({
+  required Size viewport,
+  required SpreadPreference preference,
+  required Axis scrollDirection,
+}) {
+  final facing = switch (preference) {
+    SpreadPreference.facing => true,
+    SpreadPreference.single => false,
+    SpreadPreference.auto => shouldUseFacing(viewport),
+  };
+  if (facing) return SpreadMode.facing;
+  return scrollDirection == Axis.horizontal
+      ? SpreadMode.singleHorizontal
+      : SpreadMode.singleVertical;
 }

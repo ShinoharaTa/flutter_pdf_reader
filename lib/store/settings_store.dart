@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../foldable/page_layout.dart';
+
 const _themeModeKey = 'themeMode';
 const _scrollDirectionKey = 'scrollDirection';
 const _bindingEdgeKey = 'bindingEdge';
+const _spreadPreferenceKey = 'spreadPreference';
 
 /// v1 のキー。bool で「ダークかどうか」を持っていた。
 const _legacyThemeKey = 'isDarkTheme';
@@ -26,22 +29,26 @@ class SettingsState {
   final ThemeMode themeMode;
   final Axis scrollDirection;
   final BindingEdge bindingEdge;
+  final SpreadPreference spreadPreference;
 
   const SettingsState({
     this.themeMode = ThemeMode.system,
     this.scrollDirection = Axis.horizontal,
     this.bindingEdge = BindingEdge.left,
+    this.spreadPreference = SpreadPreference.auto,
   });
 
   SettingsState copyWith({
     ThemeMode? themeMode,
     Axis? scrollDirection,
     BindingEdge? bindingEdge,
+    SpreadPreference? spreadPreference,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       scrollDirection: scrollDirection ?? this.scrollDirection,
       bindingEdge: bindingEdge ?? this.bindingEdge,
+      spreadPreference: spreadPreference ?? this.spreadPreference,
     );
   }
 }
@@ -60,6 +67,7 @@ class SettingsStore extends StateNotifier<SettingsState> {
       themeMode: _readThemeMode(prefs),
       scrollDirection: _readScrollDirection(prefs),
       bindingEdge: _readBindingEdge(prefs),
+      spreadPreference: _readSpreadPreference(prefs),
     );
   }
 
@@ -100,6 +108,20 @@ class SettingsStore extends StateNotifier<SettingsState> {
     state = state.copyWith(bindingEdge: edge);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_bindingEdgeKey, edge.name);
+  }
+
+  SpreadPreference _readSpreadPreference(SharedPreferences prefs) {
+    final stored = prefs.getString(_spreadPreferenceKey);
+    return SpreadPreference.values.firstWhere(
+      (p) => p.name == stored,
+      orElse: () => SpreadPreference.auto,
+    );
+  }
+
+  Future<void> setSpreadPreference(SpreadPreference preference) async {
+    state = state.copyWith(spreadPreference: preference);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_spreadPreferenceKey, preference.name);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

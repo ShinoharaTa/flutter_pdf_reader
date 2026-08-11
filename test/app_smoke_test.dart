@@ -12,14 +12,15 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('起動するとライブラリの3タブが表示される', (tester) async {
+  testWidgets('起動するとライブラリのタブが表示される', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: MyApp()));
     await tester.pump();
 
     expect(find.text('Library'), findsOneWidget);
     expect(find.text('Recent'), findsOneWidget);
     expect(find.text('Favorite'), findsOneWidget);
-    expect(find.text('Directory'), findsOneWidget);
+    // フォルダ登録は SAF の制約で機能しなかったため廃止した (#45)
+    expect(find.text('Directory'), findsNothing);
     expect(find.byIcon(Icons.folder_open), findsOneWidget);
   });
 

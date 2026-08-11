@@ -1,4 +1,5 @@
 import 'package:flextapdf/foldable/page_layout.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -119,6 +120,96 @@ void main() {
         expect(group.length, lessThanOrEqualTo(2));
         expect(group, isNotEmpty);
       }
+    });
+  });
+
+  group('見開き判定', () {
+    // 実機・シミュレータの実測値。
+    const foldUnfolded = Size(852, 883);
+    const ipadPortrait = Size(834, 1194);
+    const ipadLandscape = Size(1194, 834);
+    const iphonePortrait = Size(393, 852);
+    const iphoneLandscape = Size(852, 393);
+    const ipadMiniPortrait = Size(744, 1133);
+
+    test('折りたたみ端末の展開時は見開き', () {
+      expect(shouldUseFacing(foldUnfolded), isTrue);
+    });
+
+    test('iPad の縦持ちは単ページ（幅は 720dp を超えるが縦長）', () {
+      expect(shouldUseFacing(ipadPortrait), isFalse);
+      expect(shouldUseFacing(ipadMiniPortrait), isFalse);
+    });
+
+    test('iPad の横持ちは見開き', () {
+      expect(shouldUseFacing(ipadLandscape), isTrue);
+    });
+
+    test('iPhone は縦横どちらも単ページ', () {
+      expect(shouldUseFacing(iphonePortrait), isFalse);
+      // 横向きは十分横長だが、短辺が 393dp しかないので1ページが小さすぎる
+      expect(shouldUseFacing(iphoneLandscape), isFalse);
+    });
+
+    test('サイズが 0 なら見開きにしない', () {
+      expect(shouldUseFacing(Size.zero), isFalse);
+      expect(shouldUseFacing(const Size(0, 800)), isFalse);
+    });
+  });
+
+  group('resolveSpreadMode', () {
+    const ipadPortrait = Size(834, 1194);
+    const ipadLandscape = Size(1194, 834);
+
+    test('auto は画面の形に従う', () {
+      expect(
+        resolveSpreadMode(
+          viewport: ipadLandscape,
+          preference: SpreadPreference.auto,
+          scrollDirection: Axis.horizontal,
+        ),
+        SpreadMode.facing,
+      );
+      expect(
+        resolveSpreadMode(
+          viewport: ipadPortrait,
+          preference: SpreadPreference.auto,
+          scrollDirection: Axis.horizontal,
+        ),
+        SpreadMode.singleHorizontal,
+      );
+    });
+
+    test('手動設定は自動判定を上書きする', () {
+      // 縦長でも facing を選べば見開き
+      expect(
+        resolveSpreadMode(
+          viewport: ipadPortrait,
+          preference: SpreadPreference.facing,
+          scrollDirection: Axis.horizontal,
+        ),
+        SpreadMode.facing,
+      );
+      // 横長でも single を選べば単ページ
+      expect(
+        resolveSpreadMode(
+          viewport: ipadLandscape,
+          preference: SpreadPreference.single,
+          scrollDirection: Axis.horizontal,
+        ),
+        SpreadMode.singleHorizontal,
+      );
+    });
+
+    test('単ページのときはスクロール方向に従う', () {
+      expect(
+        resolveSpreadMode(
+          viewport: ipadPortrait,
+          preference: SpreadPreference.auto,
+          scrollDirection: Axis.vertical,
+        ),
+        SpreadMode.singleVertical,
+      );
     });
   });
 }
